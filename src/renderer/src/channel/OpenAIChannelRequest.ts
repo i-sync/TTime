@@ -10,6 +10,10 @@ import { v4 as uuidv4 } from 'uuid'
 import { OpenAIModelEnum } from '../../../common/enums/OpenAIModelEnum'
 import { EventStreamContentType, fetchEventSource } from '@fortaine/fetch-event-source'
 import { buildModePrompts } from '../../../common/channel/translate/DeveloperPromptPresets'
+import {
+  disableSessionProxyAfterService,
+  enableSessionProxyForService
+} from '../utils/proxyUtil'
 
 export class QuoteProcessor {
   private quote: string
@@ -203,6 +207,7 @@ class OpenAIChannelRequest {
    */
   static openaiTranslate = async (info): Promise<void> => {
     const isCheckRequest = false
+    const proxyWasEnabled = enableSessionProxyForService(info.useProxy)
     const { data, quoteProcessor } = OpenAIChannelRequest.buildOpenAIRequest(info, isCheckRequest)
     window.api['agentApiTranslateCallback'](
       R.okD(
@@ -229,6 +234,7 @@ class OpenAIChannelRequest {
         ) {
           return // everything's good
         } else {
+          disableSessionProxyAfterService(proxyWasEnabled)
           window.api.logInfoEvent('[OpenAI翻译事件] - error 连接失败 :', {
             status: response.status,
             statusText: response.statusText
@@ -285,6 +291,7 @@ class OpenAIChannelRequest {
         }
       },
       onclose() {
+        disableSessionProxyAfterService(proxyWasEnabled)
         window.api['agentApiTranslateCallback'](
           R.okD(
             new AgentTranslateCallbackVo(info, {
@@ -295,6 +302,7 @@ class OpenAIChannelRequest {
         window.api.logInfoEvent('[OpenAI翻译事件] - 响应报文 : ', text)
       },
       onerror(err) {
+        disableSessionProxyAfterService(proxyWasEnabled)
         window.api.logInfoEvent('[OpenAI翻译事件] - error {}', err)
         window.api['agentApiTranslateCallback'](
           R.errorD(

@@ -24,6 +24,9 @@
             <el-menu-item index="translateServiceConfig">
               <span class="none-select">翻译源设置</span>
             </el-menu-item>
+            <el-menu-item index="translateModeSettings">
+              <span class="none-select">翻译模式设置</span>
+            </el-menu-item>
             <el-menu-item index="networkSet">
               <span class="none-select">网络设置</span>
             </el-menu-item>
@@ -46,6 +49,7 @@
             <shortcut-key v-else-if="menuIndex === 'shortcutKey'" />
             <translate-history v-else-if="menuIndex === 'translateHistory'" />
             <translate-service-config v-else-if="menuIndex === 'translateServiceConfig'" />
+            <translate-mode-settings v-else-if="menuIndex === 'translateModeSettings'" />
             <network-set v-else-if="menuIndex === 'networkSet'" />
             <config-file v-else-if="menuIndex === 'configFile'" />
             <about v-else-if="menuIndex === 'about'" />
@@ -64,6 +68,7 @@ import AdvancedInfo from './components/fun/AdvancedInfo.vue'
 import ShortcutKey from './components/fun/ShortcutKey.vue'
 import TranslateHistory from './components/fun/TranslateHistory.vue'
 import TranslateServiceConfig from './components/fun/TranslateServiceConfig.vue'
+import TranslateModeSettings from './components/fun/TranslateModeSettings.vue'
 import NetworkSet from './components/fun/NetworkSet.vue'
 import ConfigFile from './components/fun/ConfigFile.vue'
 import About from './components/fun/About.vue'

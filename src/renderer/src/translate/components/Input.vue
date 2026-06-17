@@ -47,7 +47,7 @@ import { isNotNull, isNull } from '../../../../common/utils/validate'
 import loadingImage from '../../assets/loading.gif'
 import translate from '../../utils/translate'
 import { TranslateServiceBuilder } from '../../utils/translateServiceUtil'
-import { cacheGet, cacheGetByType, cacheSetByType } from '../../utils/cacheUtil'
+import { cacheGet, cacheGetByType, cacheSet } from '../../utils/cacheUtil'
 import ElMessageExtend from '../../utils/messageExtend'
 import { YesNoEnum } from '../../../../common/enums/YesNoEnum'
 import TranslateRecordVo from '../../../../common/class/TranslateRecordVo'
@@ -55,13 +55,15 @@ import TranslateServiceRecordVo from '../../../../common/class/TranslateServiceR
 import { StoreTypeEnum } from '../../../../common/enums/StoreTypeEnum'
 import { updateTranslateRecordList } from '../../utils/translateRecordUtil'
 import {
-  getActiveServicesForMode,
   getEmptyModeMessage,
   getTranslateMode,
+  isAiTranslateService,
+  resolveActiveServicesForMode,
   resolveLanguageTypesForService,
-  resolveLanguagesForTranslate
+  resolveLanguagesForTranslate,
+  shouldNotifyBindingFallback
 } from '../../utils/translateModeUtil'
-import { cacheSet } from '../../utils/cacheUtil'
+import { getCustomRolePrompt } from '../../utils/translateModeConfigUtil'
 
 // 加载loading
 const loadingImageSrc = ref(loadingImage)
@@ -207,7 +209,11 @@ const translateFun = (): void => {
     translateMode
   )
 
-  const activeServices = getActiveServicesForMode(translateMode)
+  const { services: activeServices, bindingFallback } = resolveActiveServicesForMode(translateMode)
+  if (bindingFallback && shouldNotifyBindingFallback(bindingFallback)) {
+    ElMessageExtend.warning(bindingFallback.message)
+  }
+  const customRolePrompt = getCustomRolePrompt(translateMode)
   cacheSet(
     'lastActiveServiceIds',
     activeServices.map((s) => s.id)
@@ -246,7 +252,9 @@ const translateFun = (): void => {
       translateContentDealWith,
       langTypes.languageInputType,
       langTypes.languageResultType,
-      translateMode
+      translateMode,
+      isAiTranslateService(type) ? customRolePrompt : '',
+      translateService.useProxy ?? YesNoEnum.N
     )
     info = {
       ...info,
@@ -333,20 +341,26 @@ const buildTranslateRequestInfo = (
   translateContentDealWith,
   languageType,
   languageResultType,
-  translateMode
+  translateMode,
+  customRolePrompt,
+  useProxy
 ): {
   channel
   translateContent
   languageType
   languageResultType
   translateMode
+  customRolePrompt
+  useProxy
 } => {
   return {
     channel: 0,
     translateContent: translateContentDealWith,
     languageType: languageType,
     languageResultType: languageResultType,
-    translateMode: translateMode
+    translateMode: translateMode,
+    customRolePrompt: customRolePrompt,
+    useProxy: useProxy
   }
 }
 

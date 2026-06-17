@@ -6,6 +6,13 @@ import { getTranslateServiceMapByUse } from './translateServiceUtil'
 import { findLanguageByLanguageName } from '../translate/components/channel/language/ChannelLanguage'
 import { getLanguageNameConversion, getLanguageResultNameConversion } from './languageUtil'
 import { isNull } from '../../../common/utils/validate'
+import {
+  getBoundServiceForMode,
+  getModeServiceBindings,
+  restoreModeLanguagePair,
+  saveCurrentModeLanguagePair,
+  setModeServiceBinding
+} from './translateModeConfigUtil'
 
 export const PSEUDO_LANGUAGE_NAMES = ['文字润色', '总结', '分析', '解释代码']
 
@@ -14,6 +21,21 @@ const AI_SERVICE_TYPES = [
   TranslateServiceEnum.AZURE_OPEN_AI,
   TranslateServiceEnum.TTIME_AI
 ]
+
+export function isAiTranslateService(serviceType: string): boolean {
+  return AI_SERVICE_TYPES.includes(serviceType)
+}
+
+export type BindingFallback = {
+  mode: string
+  bindingId: string
+  message: string
+}
+
+export type ActiveServicesResult = {
+  services: any[]
+  bindingFallback?: BindingFallback
+}
 
 const MODE_PRIORITY: Record<string, string[]> = {
   [TranslateModeEnum.POLISH]: [...AI_SERVICE_TYPES],
@@ -49,8 +71,15 @@ export function getTranslateMode(): string {
 }
 
 export function setTranslateMode(mode: string): void {
+  const previousMode = getTranslateMode()
+  if (previousMode !== mode) {
+    saveCurrentModeLanguagePair(previousMode)
+  }
   cacheSet('translateMode', mode)
-  applyModeLanguageDefaults(mode)
+  if (!restoreModeLanguagePair(mode)) {
+    applyModeLanguageDefaults(mode)
+    saveCurrentModeLanguagePair(mode)
+  }
 }
 
 export function applyModeLanguageDefaults(mode: string): void {
@@ -90,12 +119,40 @@ function sortByPriority(services: any[], mode: string): any[] {
   })
 }
 
+const bindingFallbackWarnedKeys = new Set<string>()
+
 /**
- * 获取当前模式下参与翻译的源（按优先级排序）
+ * 返回是否应向用户展示绑定回退提示（由 Input.vue translateFun 调用，避免 UI 初始化误弹）
  */
-export function getActiveServicesForMode(mode?: string): any[] {
-  const translateMode = mode || getTranslateMode()
-  const allServices = [...getTranslateServiceMapByUse().values()]
+export function shouldNotifyBindingFallback(fallback: BindingFallback): boolean {
+  const key = `${fallback.mode}:${fallback.bindingId}`
+  if (bindingFallbackWarnedKeys.has(key)) {
+    return false
+  }
+  bindingFallbackWarnedKeys.add(key)
+  return true
+}
+
+export function clearBindingFallbackWarnCache(): void {
+  bindingFallbackWarnedKeys.clear()
+}
+
+function isServiceAllowedForMode(service: { type: string }, mode: string): boolean {
+  const allowedTypes = MODE_PRIORITY[mode] || []
+  return allowedTypes.includes(service.type)
+}
+
+/**
+ * 获取某模式下可绑定的已启用翻译源
+ */
+export function getBindableServicesForMode(mode: string): any[] {
+  const allowedTypes = new Set(MODE_PRIORITY[mode] || [])
+  return [...getTranslateServiceMapByUse().values()].filter((service) =>
+    allowedTypes.has(service.type)
+  )
+}
+
+function resolveDefaultServicesForMode(translateMode: string, allServices: any[]): any[] {
   let filtered: any[]
 
   if (translateMode === TranslateModeEnum.POLISH || translateMode === TranslateModeEnum.TRANSLATE) {
@@ -115,6 +172,54 @@ export function getActiveServicesForMode(mode?: string): any[] {
   }
 
   return sortByPriority(filtered, translateMode)
+}
+
+function fallbackAfterInvalidBinding(
+  translateMode: string,
+  bindingId: string,
+  message: string
+): ActiveServicesResult {
+  setModeServiceBinding(translateMode, '')
+  const allServices = [...getTranslateServiceMapByUse().values()]
+  return {
+    services: resolveDefaultServicesForMode(translateMode, allServices),
+    bindingFallback: { mode: translateMode, bindingId, message }
+  }
+}
+
+/**
+ * 解析当前模式下参与翻译的源（无 UI 副作用；无效绑定时会写 cache 清除）
+ */
+export function resolveActiveServicesForMode(mode?: string): ActiveServicesResult {
+  const translateMode = mode || getTranslateMode()
+  const bindingId = getModeServiceBindings()[translateMode]
+  const boundService = getBoundServiceForMode(translateMode)
+  if (!isNull(bindingId) && bindingId !== '') {
+    if (!boundService) {
+      return fallbackAfterInvalidBinding(
+        translateMode,
+        bindingId,
+        '绑定的翻译源未启用或验证失败，已回退自动路由'
+      )
+    }
+    if (!isServiceAllowedForMode(boundService, translateMode)) {
+      return fallbackAfterInvalidBinding(
+        translateMode,
+        bindingId,
+        `「${translateMode}」模式的绑定翻译源类型不兼容，已回退自动路由`
+      )
+    }
+    return { services: [boundService] }
+  }
+  const allServices = [...getTranslateServiceMapByUse().values()]
+  return { services: resolveDefaultServicesForMode(translateMode, allServices) }
+}
+
+/**
+ * 获取当前模式下参与翻译的源（按优先级排序）
+ */
+export function getActiveServicesForMode(mode?: string): any[] {
+  return resolveActiveServicesForMode(mode).services
 }
 
 export function getPrimaryServiceForMode(mode?: string): any | null {

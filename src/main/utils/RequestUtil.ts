@@ -2,6 +2,7 @@ import { isNotNull, isNull } from '../../common/utils/validate'
 import log from './log'
 import createHttpsProxyAgent from 'https-proxy-agent'
 import StoreService from '../service/StoreService'
+import { ProxyScopeEnum } from '../../common/enums/ProxyScopeEnum'
 
 /**
  * 公共错误处理
@@ -67,6 +68,9 @@ export const injectAgentBySetAgentFieldName = async (
   agentFieldName
 ): Promise<void> => {
   const agentConfig = StoreService.configGet('agentConfig')
+  if (agentConfig?.proxyScope === ProxyScopeEnum.PER_SERVICE) {
+    return
+  }
   if (
     isNotNull(agentConfig) &&
     isNotNull(agentConfig.host) &&
@@ -94,6 +98,15 @@ export const injectAgentBySetAgentFieldName = async (
  */
 export const injectWinAgent = (agentConfig, session): void => {
   session.closeAllConnections()
+  const isPerSourceScope = agentConfig?.proxyScope === ProxyScopeEnum.PER_SERVICE
+  if (isPerSourceScope) {
+    log.info('[窗口代理] - 按翻译源配置模式，窗口使用直连')
+    session.setProxy({
+      proxyRules: null,
+      mode: 'direct'
+    })
+    return
+  }
   if (
     isNotNull(agentConfig) &&
     isNotNull(agentConfig.host) &&

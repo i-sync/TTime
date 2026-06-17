@@ -4,6 +4,7 @@ import R from '../../../common/class/R'
 import AgentTranslateCallbackVo from '../../../common/class/AgentTranslateCallbackVo'
 import TranslateServiceEnum from '../../../common/enums/TranslateServiceEnum'
 import { commonError } from '../utils/RequestUtil'
+import { applyServiceProxyToAxiosConfig } from '../utils/proxyUtil'
 import { isNotNull } from '../../../common/utils/validate'
 
 class DeepLChannelRequest {
@@ -29,6 +30,7 @@ class DeepLChannelRequest {
       },
       data
     }
+    applyServiceProxyToAxiosConfig(requestInfo, info.useProxy)
     request(requestInfo).then(
       (data) => {
         window.api['agentApiTranslateCallback'](R.okD(new AgentTranslateCallbackVo(info, data)))
@@ -90,7 +92,7 @@ class DeepLChannelRequest {
     } else {
       data = data.replace('"method":"', '"method": "')
     }
-    request({
+    const builtInRequestInfo = {
       baseURL: 'https://www2.deepl.com',
       url: '/jsonrpc',
       method: HttpMethodType.POST,
@@ -98,7 +100,9 @@ class DeepLChannelRequest {
         'Content-Type': 'application/json; charset=utf-8'
       },
       data: data
-    })
+    }
+    applyServiceProxyToAxiosConfig(builtInRequestInfo, info.useProxy)
+    request(builtInRequestInfo)
       .then((res) => {
         window.api['agentApiTranslateCallback'](R.okD(new AgentTranslateCallbackVo(info, res)))
       })

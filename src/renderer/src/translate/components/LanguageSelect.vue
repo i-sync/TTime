@@ -90,6 +90,7 @@ import { cacheGet, cacheSet } from '../../utils/cacheUtil'
 import LanguageEnum from '../../enums/LanguageEnum'
 import { isNull } from '../../../../common/utils/validate'
 import { getTranslateMode } from '../../utils/translateModeUtil'
+import { saveCurrentModeLanguagePair } from '../../utils/translateModeConfigUtil'
 import TranslateModeEnum from '../../../../common/enums/TranslateModeEnum'
 
 const emit = defineEmits(['swap-symmetric', 'polish-to-verify'])
@@ -151,14 +152,20 @@ const clickSelectResultFun = (): void => {
   showLanguageResult.value = !showLanguageResult.value
 }
 
+const persistLanguagePair = (): void => {
+  saveCurrentModeLanguagePair(getTranslateMode())
+}
+
 const inputLanguageSelectClick = (language: object): void => {
   cacheSet('inputLanguage', language)
   inputLanguageSelect.value = language
+  persistLanguagePair()
 }
 
 const resultLanguageSelectClick = (language: object): void => {
   cacheSet('resultLanguage', language)
   resultLanguageSelect.value = language
+  persistLanguagePair()
 }
 
 const clickLanguageExchange = (): void => {

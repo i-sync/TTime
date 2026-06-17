@@ -158,6 +158,13 @@
             />
           </el-form-item>
 
+          <el-form-item v-if="showUseProxyOption" label="使用代理">
+            <el-checkbox v-model="useProxyEnabled" @change="useProxyStatusChange" />
+            <span class="form-switch-span">
+              仅在网络设置选择「按翻译源配置代理」时生效（如 OpenRouter 需代理、DeepL 直连）
+            </span>
+          </el-form-item>
+
           <el-form-item
             v-if="translateServiceThis.type === TranslateServiceEnum.AZURE_OPEN_AI"
             label="请求地址"
@@ -221,7 +228,9 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { YesNoEnum } from '../../../../../../common/enums/YesNoEnum'
+import { isProxyConfigurableService } from '../../../../utils/translateModeConfigUtil'
 import draggable from 'vuedraggable'
 import { Minus, Plus } from '@element-plus/icons-vue'
 
@@ -242,6 +251,23 @@ import { ServiceTypeEnum } from '../../../../../../common/enums/ServiceTypeEnum'
 
 // 翻译服务验证状态
 const checkIngStatus = ref(false)
+
+const showUseProxyOption = computed(() => {
+  return isProxyConfigurableService(translateServiceThis.value?.type)
+})
+
+const useProxyEnabled = computed({
+  get: () => translateServiceThis.value?.useProxy === YesNoEnum.Y,
+  set: (val: boolean) => {
+    if (translateServiceThis.value) {
+      translateServiceThis.value.useProxy = val ? YesNoEnum.Y : YesNoEnum.N
+    }
+  }
+})
+
+const useProxyStatusChange = (): void => {
+  saveService(translateServiceThis.value)
+}
 
 // 可添加的翻译源列表 先把 values 格式转换为数组
 const translateServiceSelectMenuListTemp = Array.from(

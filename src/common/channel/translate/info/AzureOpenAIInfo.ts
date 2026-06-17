@@ -8,7 +8,8 @@ export default {
   defaultInfo: {
     model: 'gpt-3.5-turbo',
     endpoint: '',
-    deploymentName: ''
+    deploymentName: '',
+    useProxy: 'N'
   },
   // 翻译语言
   languageList: [
