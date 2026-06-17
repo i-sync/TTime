@@ -1,8 +1,9 @@
 # TTime AI 翻译优化分析与改造方案
 
-> 文档版本：v1.2（Review 修订版）  
+> 文档版本：v1.3（实施完成版）  
 > 日期：2026-06-17  
-> 用途：汇总需求分析、现状差距与分阶段改造计划
+> 用途：汇总需求分析、现状差距与分阶段改造计划  
+> **实施状态**：Phase 1–3 已完成（`6dac552` / `dfa10b9` / `8b47cc1`）；#13 不实施
 
 ---
 
@@ -390,9 +391,10 @@ function getPrimaryResultContent(): string {
 模式 UI 上线后，当用户通过 `translateMode` 操作时：
 
 - **对 OpenAI / AzureOpenAI 源**：语言选择器仅展示真实语言（英/中等），**隐藏**「文字润色」「总结」「分析」「解释代码」等伪语言项。
-- **向后兼容**：未使用模式 UI、仍手动选择「文字润色」的旧路径在 Phase 1 **保留但不推荐**；Phase 2 评估是否完全移除。
+- **向后兼容（旧路径保留）**：若用户 cache 里仍保存了「英语 → 文字润色」等旧语言对，或从旧版本升级而来，请求会走 `languageResultType === '文字润色'` 等**旧 Prompt 分支**（见 `OpenAIChannelRequest.ts`）。这与新模式 `translateMode` 驱动 Prompt **并存**，即下文所称「伪语言旧路径」。
+- **#13 不实施**：不新增第四模式「代码解释」，**不删除**旧伪语言代码与配置。正常使用新 UI 的用户不会接触到旧路径。
 
-这样避免双入口与 §4.4 类多源噪音。
+这样避免双入口与 §4.4 类多源噪音；对日常用户无感知，仅影响维护时需知存在两套 Prompt 触发方式。
 
 ### 5.8 模式与翻译源绑定（第二阶段）
 
@@ -423,7 +425,7 @@ function getPrimaryResultContent(): string {
 | 10 | 模式与翻译源绑定（5.8） |
 | 11 | 按翻译源配置代理（非全局） |
 | 12 | 按模式记忆最近语言对 |
-| 13 | 可选第四模式「代码解释」；移除旧伪语言路径 |
+| 13 | ~~可选第四模式「代码解释」；移除旧伪语言路径~~ **不实施**（见 §13 实施说明） |
 
 ### 第三阶段 — 工作流自动化
 
@@ -434,55 +436,74 @@ function getPrimaryResultContent(): string {
 | 16 | 剪贴板监听：检测英文自动对照 |
 | 17 | Round-trip 检查提示（EN→CN→EN） |
 
+### 实施记录与 Git 提交
+
+| 阶段 | 提交 | 说明 |
+|------|------|------|
+| Phase 1 | `6dac552` | 翻译模式、路由、translateMode 请求链路、DeepL 式切换 |
+| Phase 2 | `dfa10b9` | 自定义 Prompt、模式绑定、按源代理、按模式记忆语言对 |
+| Phase 3 | `8b47cc1` | 润色+对照双输出、划词/剪贴板自动对照、Round-trip 提示 |
+
+**完成度：16/17**（#13 明确不做）。
+
+### §13 不实施说明
+
+产品决策：**不需要**独立「代码解释」模式，也**不需要**删除旧伪语言相关代码。
+
+- 新工作流完全通过顶部 **[润色] [对照] [翻译]** 完成，语言列表里的「文字润色」「解释代码」等项在模式 UI 下已隐藏。
+- 旧代码保留仅为**升级用户**或**异常 cache** 的兼容，不影响新用户日常使用。
+
 ---
 
 ## 7. 核心代码改动点
 
 ```
 src/common/enums/
-  └── TranslateModeEnum.ts              # 润色/对照/翻译
+  ├── TranslateModeEnum.ts
+  └── TranslateContentSourceEnum.ts     # Phase 3：划词/剪贴板来源
 
 src/common/channel/translate/
-  └── DeveloperPromptPresets.ts         # 共享 Prompt（OpenAI/Azure 专用）
-
-src/renderer/src/translate/components/Input.vue
-  ├── getActiveServicesForMode()        # 5.6 模式路由
-  ├── buildTranslateRequestInfo()     # 新增 translateMode 字段
-  └── translateFun()                  # 空态处理
-
-src/renderer/src/channel/
-  ├── OpenAIChannelRequest.ts           # 按 translateMode 选 Prompt
-  └── AzureOpenAIChannelRequest.ts      # 同上
-
-src/renderer/src/translate/
-  ├── Translate.vue                     # swap 编排、主结果源、替换输入
-  ├── components/LanguageSelect.vue     # 模式切换、分模式 swap、AUTO 持久化
-  ├── components/InputResultContent.vue
-  │     └── getPrimaryResultContent(serviceId)
-  └── components/channel/InputResultContentChannel.vue
-        └── getTranslatedResultContent()
-
-src/renderer/src/translate/components/channel/language/
-  └── ChannelLanguage.ts                # 模式激活时过滤伪语言项
-
-src/renderer/src/set/components/fun/serviceConfig/
-  └── TranslateService.vue              # OpenAI 模型自由输入、URL 帮助文案
+  ├── DeveloperPromptPresets.ts
+  └── ModePromptDefaults.ts             # Phase 2：可覆盖默认 Prompt
 
 src/renderer/src/utils/
-  └── languageUtil.ts                   # resolveAndPersistAutoLanguage()
+  ├── translateModeUtil.ts              # 模式路由、语言对、绑定回退
+  ├── translateModeConfigUtil.ts        # Phase 2：Prompt / 绑定 / 语言对记忆
+  ├── translateExecutionUtil.ts         # Phase 3：执行计划、双输出
+  ├── translateExternalEntryUtil.ts     # Phase 3：外部内容入口
+  ├── translateRoundTripHintUtil.ts     # Phase 3：Round-trip 提示
+  ├── proxyUtil.ts                      # Phase 2：按源代理
+  └── languageUtil.ts
+
+src/renderer/src/translate/
+  ├── Translate.vue
+  ├── composables/useTranslateWorkflow.ts
+  ├── components/TranslateModeSelect.vue
+  ├── components/LanguageSelect.vue
+  ├── components/Input.vue
+  ├── components/InputResultContent.vue
+  └── components/channel/InputResultContentChannel.vue
+
+src/renderer/src/set/components/fun/
+  ├── TranslateModeSettings.vue         # Phase 2
+  └── AdvancedInfo.vue                  # Phase 3 工作流开关
+
+src/renderer/src/channel/
+  ├── OpenAIChannelRequest.ts           # translateMode 优先；旧伪语言分支保留
+  └── AzureOpenAIChannelRequest.ts
 ```
 
 ---
 
-## 8. 改造前临时用法
+## 8. 推荐日常用法（改造后）
 
-1. **设置 → 翻译源** → 添加 OpenAI
-   - 请求地址：`https://openrouter.ai/api`（现已支持）
-   - 模型：仅 gpt-3.5 下拉（自定义模型名需 Phase 1）
-2. **只启用** AI 源 + DeepL 内置
-3. 手动选择：润色 **英语 → 文字润色**；对照 **英语 → 中文(简体)**
-4. 润色结果需手动复制回输入框（切换不交换文本）
-5. OpenRouter 需代理时，全局代理会拖慢 DeepL（按源代理需 Phase 2）
+1. **设置 → 翻译源**：添加 OpenAI（可选 OpenRouter）+ 启用 DeepL 内置
+2. **主窗口**：点 **[润色] / [对照] / [翻译]**，无需再从语言列表找「文字润色」
+3. **英文沟通**：输入草稿 → **润色+对照** 或先润色再点 **⇄** 做 round-trip
+4. **划词 / 复制英文**：默认自动切到对照模式（可在 设置 → 高级 关闭）
+5. **代理**：在翻译源配置里按源开启 `useProxy`，不必全局拖慢 DeepL
+
+> 旧用法「英语 → 文字润色」仍可能因历史配置生效，但 UI 已隐藏该入口，新用户无需了解。
 
 ---
 
@@ -503,22 +524,21 @@ src/renderer/src/utils/
 
 > **像 DeepL 一样双向验证意思，像 AI 一样润色技术英文，像开发者一样解释代码逻辑。**
 
-### 当前最大缺口
+### 改造后能力（相对原文档 §4 缺口）
 
-1. **切换不像 DeepL** — 不交换文本、不自动重译；润色场景朴素对调失效
-2. **无 translateMode 请求链路** — Prompt 仍绑在「文字润色」伪语言上
-3. **润色入口太深** — 埋在语言列表
-4. **代理全局化** — Phase 2 解决
-5. **OpenAI 模型不可自由输入**
+| 原缺口 | 状态 |
+|--------|------|
+| 切换不像 DeepL | ✅ 对照/翻译：`onSwapSymmetric`；润色：`onPolishToVerify` |
+| 无 translateMode 链路 | ✅ `translateExecutionUtil` + `DeveloperPromptPresets` |
+| 润色入口太深 | ✅ 顶部模式切换 + 润色+对照按钮 |
+| 代理全局化 | ✅ 按源 `useProxy`（Phase 2） |
+| OpenAI 模型不可自由输入 | ✅ `allow-create` 模型名（Phase 1） |
+| 多源并行报错噪音 | ✅ 按模式路由，空态单条提示 |
 
-### 建议实施顺序
+### 已知小边界（不阻塞使用）
 
-```
-翻译模式 + 路由 + translateMode 请求链路
-  → 主结果源 getter + DeepL 式切换
-  → 开发者 Prompt + OpenAI 模型自由输入
-  →（Phase 2）自定义 Prompt + 按源代理
-```
+- 对照 API **业务失败**时若走 `okIT` 错误文案，偶发误弹 Round-trip 成功提示（主路径正常）
+- 双输出主结果源依赖 cache 中的 `dualOutput*` 键，清空内容时会重置
 
 ---
 
@@ -537,24 +557,45 @@ src/renderer/src/utils/
 | OpenAI 兼容源 | 扩展现有 OpenAI 配置 |
 | Azure 模型改造 | Phase 1 不改（deploymentName 已足够） |
 | 空态 | `activeServices` 为空时单条提示 |
-| 按源代理 / 自定义 Prompt | Phase 2 |
+| 按源代理 / 自定义 Prompt | Phase 2 ✅ |
+| Phase 3 工作流自动化 | Phase 3 ✅ |
+| #13 代码解释 / 移除伪语言 | **不实施** |
 
 ---
 
-## 12. Phase 1 验收标准
+## 12. 验收标准（实施结果）
 
-- [ ] 三种模式可切换并持久化；切换模式时语言对按 §5.1 表自动重置
-- [ ] **润色**：EN→EN，路由至 AI 源；**OpenAI/Azure 使用开发者润色 Prompt**（`translateMode` 驱动）
-- [ ] **TTimeAI 润色**：行为不退化（沿用服务端 Prompt）；不纳入开发者 Prompt 验收
-- [ ] **对照**：EN→CN；优先 `DEEP_L_BUILT_IN`，其次 `DEEP_L`，最后 AI 忠实 Prompt
-- [ ] **翻译**：CN→EN；OpenAI/Azure 使用开发者翻译 Prompt
-- [ ] `buildTranslateRequestInfo` 包含 `translateMode`；通道不再依赖「文字润色」伪语言触发 Prompt
-- [ ] **对照/翻译 `⇄`**：交换语言 + 文本 + 自动重译；AUTO 解析后写回 cache 并更新 UI
-- [ ] **润色 `⇄`**：`onPolishToVerify` 切入对照
-- [ ] **「用结果替换输入」**：读取主结果源（§5.3 C）文本写入输入框
-- [ ] OpenAI 源支持自由输入模型名；设置页展示 URL 规则（不含 `/v1`）
-- [ ] 模式 UI 下 AI 源语言列表不展示伪语言项
-- [ ] 无可用源时显示单条空态提示；不对跳过源报「不支持翻译当前语言」
+### Phase 1
+
+- [x] 三种模式可切换并持久化；切换模式时语言对按 §5.1 表自动重置
+- [x] **润色**：EN→EN，路由至 AI 源；OpenAI/Azure 使用开发者润色 Prompt（`translateMode` 驱动）
+- [x] **TTimeAI 润色**：沿用服务端 Prompt（`文字润色` 伪语言类型）
+- [x] **对照**：EN→CN；优先 `DEEP_L_BUILT_IN`，其次 `DEEP_L`，最后 AI 忠实 Prompt
+- [x] **翻译**：CN→EN；OpenAI/Azure 使用开发者翻译 Prompt
+- [x] 请求体包含 `translateMode`（`translateExecutionUtil.buildRequestInfo`）
+- [x] **对照/翻译 `⇄`**：交换语言 + 文本 + 自动重译；AUTO 写回 cache
+- [x] **润色 `⇄`**：`onPolishToVerify`
+- [x] **「用结果替换输入」**：主结果源文本写入输入框
+- [x] OpenAI 模型自由输入；URL 规则说明（不含 `/v1`）
+- [x] 模式 UI 下语言列表不展示伪语言项
+- [x] 无可用源时单条空态提示
+
+> **说明**：新模式下 Prompt 由 `translateMode` 驱动。`OpenAIChannelRequest` 中 `languageResultType === '文字润色'` 等分支**仍保留**作旧配置兼容，不视为验收失败（见 §5.7、§13）。
+
+### Phase 2
+
+- [x] #9 设置页自定义 Prompt
+- [x] #10 模式与翻译源绑定
+- [x] #11 按翻译源配置代理
+- [x] #12 按模式记忆语言对
+- [—] #13 不实施
+
+### Phase 3
+
+- [x] #14 一键润色+对照双输出
+- [x] #15 划词翻译默认对照模式
+- [x] #16 剪贴板英文自动对照
+- [x] #17 Round-trip 检查提示
 
 ---
 
