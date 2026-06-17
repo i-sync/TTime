@@ -1,27 +1,45 @@
 <template>
-  <div class='block'>
+  <div class="block">
     <Header />
-    <div class='block-layer'>
-      <Input
-        ref='translateInput'
-        @show-result-event='(value) => translatedResultInput.setShowResult(value)'
-        @is-result-loading-event='(value) => translatedResultInput.setIsResultLoading(value)'
-        v-show='!hideTranslateInput'
+    <div class="block-layer">
+      <translate-mode-select
+        v-show="!hideTranslateLanguage"
+        ref="translateModeSelectRef"
+        @mode-changed="onModeChanged"
       />
 
       <language-select
-        v-show='!hideTranslateLanguage'
+        v-show="!hideTranslateLanguage"
+        ref="languageSelectRef"
+        @swap-symmetric="onSwapSymmetric"
+        @polish-to-verify="onPolishToVerify"
       />
 
-      <input-result-content ref='translatedResultInput' />
+      <Input
+        v-show="!hideTranslateInput"
+        ref="translateInput"
+        @show-result-event="(value) => translatedResultInput.setShowResult(value)"
+        @is-result-loading-event="(value) => translatedResultInput.setIsResultLoading(value)"
+        @active-services-changed="onActiveServicesChanged"
+      />
+
+      <div v-show="!hideTranslateLanguage" class="result-actions-block">
+        <a class="result-action function-tools" @click="onReplaceInputWithResult">
+          <svg-icon icon-class="substitution" class="function-tools-icon result-action-icon" />
+          <span class="result-action-text">用结果替换输入</span>
+        </a>
+      </div>
+
+      <input-result-content ref="translatedResultInput" />
     </div>
   </div>
 </template>
 
-<script setup lang='ts'>
+<script setup lang="ts">
 import Header from './components/Header.vue'
 import Input from './components/Input.vue'
 import LanguageSelect from './components/LanguageSelect.vue'
+import TranslateModeSelect from './components/TranslateModeSelect.vue'
 import InputResultContent from './components/InputResultContent.vue'
 
 import { nextTick, ref } from 'vue'
@@ -37,48 +55,57 @@ import TranslateServiceEnum from '../../../common/enums/TranslateServiceEnum'
 import OcrServiceEnum from '../../../common/enums/OcrServiceEnum'
 import { loadNewServiceInfo } from '../utils/memberUtil'
 import { YesNoEnum } from '../../../common/enums/YesNoEnum'
+import { getActiveServicesForMode, initTranslateMode } from '../utils/translateModeUtil'
+import { useTranslateWorkflow } from './composables/useTranslateWorkflow'
 
 initTheme()
+initTranslateMode()
 
-// 翻译输入组件
-const translateInput = ref('')
-const translatedResultInput = ref('')
+const translateInput = ref()
+const translatedResultInput = ref()
+const languageSelectRef = ref()
+const translateModeSelectRef = ref()
 const hideTranslateInput = ref(false)
 const hideTranslateLanguage = ref(false)
 
-// 应用启动
-window.api.ttimeApiAppStart()
+const onModeChanged = (): void => {
+  languageSelectRef.value?.syncFromCache()
+  translateModeSelectRef.value?.refreshMode()
+  const activeIds = getActiveServicesForMode().map((service) => service.id)
+  translatedResultInput.value?.setActiveServiceIds(activeIds)
+}
 
-// 页面高度改变监听
-window.api.pageHeightChangeEvent()
-
-loadNewServiceInfo()
-
-// 清空翻译输入、结果内容事件
-window.api.clearAllTranslateContentEvent(() => {
-  translatedResultInput.value.clearTranslatedResultContentEvent()
-  translateInput.value.clearTranslatedContentEvent()
+const { onSwapSymmetric, onPolishToVerify, onReplaceInputWithResult } = useTranslateWorkflow({
+  getInput: () => translateInput.value,
+  getResult: () => translatedResultInput.value,
+  getLanguageSelect: () => languageSelectRef.value,
+  onModeSync: onModeChanged
 })
 
-// 输入翻译触发的窗口显示事件
+window.api.ttimeApiAppStart()
+window.api.pageHeightChangeEvent()
+loadNewServiceInfo()
+
+window.api.clearAllTranslateContentEvent(() => {
+  translatedResultInput.value?.clearTranslatedResultContentEvent()
+  translateInput.value?.clearTranslatedContentEvent()
+})
+
 window.api.winShowByInputEvent(() => {
   nextTick(() => {
-    // 当输入翻译触发显示窗口时 并且用户没有进行任何操作时
-    // 会导致窗口大小一直是最大的 所以这里获取页面高度更新窗口大小
     window.api.windowHeightChangeEvent()
     hideTranslateInput.value = cacheGet('hideTranslateInput') === YesNoEnum.Y
     hideTranslateLanguage.value = cacheGet('hideTranslateLanguage') === YesNoEnum.Y
   })
 })
 
-/**
- * 翻译服务list 如果不存在则说明第一次打开
- * 初始化默认翻译服务
- */
+const onActiveServicesChanged = (ids: string[]): void => {
+  translatedResultInput.value?.setActiveServiceIds(ids, true)
+}
+
 if (isNull(cacheGet('translateServiceMap'))) {
   const translateServiceMap = oldCacheGet('translateServiceMap')
   if (undefined !== translateServiceMap) {
-    // 兼容浏览器存储方式的数据 导入到文件存储里去
     setTranslateServiceMap(new Map(translateServiceMap))
   } else {
     const map = new Map()
@@ -100,14 +127,9 @@ if (isNull(cacheGet('translateServiceMap'))) {
   }
 }
 
-/**
- * Ocr服务list 如果不存在则说明第一次打开
- * 初始化默认Ocr服务
- */
 if (isNull(cacheGet('ocrServiceMap'))) {
   const ocrServiceMap = oldCacheGet('ocrServiceMap')
   if (undefined !== ocrServiceMap) {
-    // 兼容浏览器存储方式的数据 导入到文件存储里去
     setOcrServiceMap(new Map(ocrServiceMap))
   } else {
     const map = new Map()
@@ -117,9 +139,6 @@ if (isNull(cacheGet('ocrServiceMap'))) {
   }
 }
 
-/**
- * 调起消息弹层提示事件
- */
 window.api.showMsgEvent((type, msg) => {
   if (type === ElMessageExtend.SUCCESS) {
     ElMessageExtend.success(msg)
@@ -131,7 +150,7 @@ window.api.showMsgEvent((type, msg) => {
 })
 </script>
 
-<style lang='scss' scoped>
+<style lang="scss" scoped>
 @import '../css/translate.scss';
 @import '../css/translate-input.scss';
 
@@ -164,5 +183,31 @@ window.api.showMsgEvent((type, msg) => {
 
 .block-layer::-webkit-scrollbar-track {
   background-color: transparent;
+}
+
+.result-actions-block {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 12px 8px 12px;
+
+  .result-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    color: var(--ttime-text-color);
+    background: var(--ttime-translate-input-color-background);
+  }
+
+  .result-action-icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .result-action-text {
+    line-height: 1;
+  }
 }
 </style>

@@ -392,7 +392,15 @@ window.api.winSizeUpdate(() => {
   adjustTextareaHeight()
 })
 
+/**
+ * 获取翻译结果内容
+ */
+const getTranslatedResultContent = (): string => {
+  return translatedResultContent.value
+}
+
 defineExpose({
+  getTranslatedResultContent,
   setTranslatedResultContent,
   clearTranslatedResultContentEvent,
   setShowResult,

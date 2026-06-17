@@ -2,6 +2,10 @@ import {
   getTranslateServiceMapByUse,
   TranslateServiceBuilder
 } from '../../../../utils/translateServiceUtil'
+import {
+  PSEUDO_LANGUAGE_NAMES,
+  shouldFilterPseudoLanguages
+} from '../../../../utils/translateModeUtil'
 
 const languageMap = new Map()
 
@@ -77,27 +81,38 @@ const mergeLanguageList = (listArray): never[] => {
 }
 
 let languageList
+let languageListAll: never[] = []
 
-/**
- * 加载翻译支持的语言列表
- */
-const initLanguageList = (): never[] => {
+const buildMergedLanguageList = (): never[] => {
   const languageArray = []
   const translateServiceMapData = getTranslateServiceMapByUse()
   for (const translateService of translateServiceMapData.values()) {
     languageArray.push(languageMap.get(translateService['type']))
   }
-  languageList = mergeLanguageList(languageArray)
+  return mergeLanguageList(languageArray)
+}
+
+/**
+ * 加载翻译支持的语言列表（选择器用，模式 UI 下过滤伪语言）
+ */
+const initLanguageList = (): never[] => {
+  languageListAll = buildMergedLanguageList()
+  languageList = shouldFilterPseudoLanguages()
+    ? languageListAll.filter((lang) => !PSEUDO_LANGUAGE_NAMES.includes(lang.languageName))
+    : languageListAll
   return languageList
 }
 
 /**
- * 根据语言名称查询语言信息
+ * 根据语言名称查询语言信息（查全量列表，兼容旧版伪语言配置）
  *
  * @param languageName 语言名称
  */
 const findLanguageByLanguageName = (languageName): object => {
-  return languageList.find((language) => {
+  if (languageListAll.length === 0) {
+    languageListAll = buildMergedLanguageList()
+  }
+  return languageListAll.find((language) => {
     return language.languageName === languageName
   })
 }

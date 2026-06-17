@@ -1,8 +1,8 @@
 <template>
-  <div v-for="(translateService, key) in translateServiceMap.values()" :key="key">
+  <div v-for="translateService in allServices" :key="translateService.id">
     <input-result-content-channel
-      :key="translateService.id"
-      :ref="setChannelRef"
+      v-show="isServiceVisible(translateService.id)"
+      :ref="setChannelRef(translateService.id)"
       :translate-service="translateService"
     />
   </div>
@@ -11,74 +11,135 @@
 <script setup lang="ts">
 import InputResultContentChannel from './channel/InputResultContentChannel.vue'
 
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { getTranslateServiceMapByUse } from '../../utils/translateServiceUtil'
+import { getActiveServicesForMode, getPrimaryServiceForMode } from '../../utils/translateModeUtil'
+import { cacheGet } from '../../utils/cacheUtil'
+import type { TranslateResultChannelApi } from '../types/TranslateResultChannelTypes'
 
-// 翻译结果框
-const channelRefs = ref([])
-// 获取缓存中的翻译服务list
-const translateServiceMap = ref()
+const channelRefMap = ref(new Map<string, TranslateResultChannelApi>())
+const activeServiceIds = ref<string[]>(getActiveServicesForMode().map((service) => service.id))
+
+const allServices = computed(() => [...getTranslateServiceMapByUse().values()])
+
+const isServiceVisible = (serviceId: string): boolean => {
+  if (activeServiceIds.value.length === 0) {
+    return false
+  }
+  return activeServiceIds.value.includes(serviceId)
+}
 
 /**
  * 加载翻译服务
  */
 const initTranslateServiceMap = (): void => {
-  // 翻译结果框
-  channelRefs.value = []
-  // 获取缓存中的翻译服务list
-  translateServiceMap.value = getTranslateServiceMapByUse()
+  channelRefMap.value = new Map()
+  const cachedIds = cacheGet('lastActiveServiceIds')
+  if (Array.isArray(cachedIds) && cachedIds.length > 0) {
+    activeServiceIds.value = cachedIds
+  } else {
+    activeServiceIds.value = getActiveServicesForMode().map((service) => service.id)
+  }
 }
-// 加载翻译服务
+
 initTranslateServiceMap()
 
 /**
  * 更新翻译服务事件
  */
 window.api.updateTranslateServiceEvent(() => {
-  // 加载翻译服务
   initTranslateServiceMap()
 })
 
 /**
- * 设置通道ref
- *
- * @param ref ref
+ * 设置通道 ref（按 serviceId 索引）
  */
-const setChannelRef = (ref): void => {
-  if (ref) {
-    channelRefs.value.push(ref)
+const setChannelRef = (serviceId: string): ((el: TranslateResultChannelApi | null) => void) => {
+  return (el: TranslateResultChannelApi | null): void => {
+    if (el) {
+      channelRefMap.value.set(serviceId, el)
+    } else {
+      channelRefMap.value.delete(serviceId)
+    }
   }
+}
+
+const getChannelByServiceId = (serviceId: string): TranslateResultChannelApi | undefined => {
+  return channelRefMap.value.get(serviceId)
+}
+
+const forEachVisibleChannel = (fn: (channel: TranslateResultChannelApi) => void): void => {
+  channelRefMap.value.forEach((channel, serviceId) => {
+    if (isServiceVisible(serviceId)) {
+      fn(channel)
+    }
+  })
+}
+
+/**
+ * 获取主结果源内容
+ */
+const getPrimaryResultContent = (): string => {
+  const primary = getPrimaryServiceForMode()
+  if (!primary) {
+    return ''
+  }
+  return getChannelByServiceId(primary.id)?.getTranslatedResultContent() ?? ''
+}
+
+/**
+ * 设置主结果源内容
+ */
+const setPrimaryResultContent = (value: string): void => {
+  const primary = getPrimaryServiceForMode()
+  if (!primary) {
+    return
+  }
+  getChannelByServiceId(primary.id)?.setTranslatedResultContent(value)
+}
+
+/**
+ * 当前模式下参与翻译的源变更
+ *
+ * @param ids 活跃源 id 列表
+ * @param clearInactive 翻译触发时清除非活跃源结果；模式切换时保留
+ */
+const setActiveServiceIds = (ids: string[], clearInactive = false): void => {
+  if (clearInactive) {
+    const previousIds = new Set(activeServiceIds.value)
+    const nextIds = new Set(ids)
+    previousIds.forEach((id) => {
+      if (!nextIds.has(id)) {
+        getChannelByServiceId(id)?.clearTranslatedResultContentEvent()
+      }
+    })
+  }
+  activeServiceIds.value = ids
 }
 
 /**
  * 设置翻译内容
- *
- * @param value 翻译内容
  */
-const setTranslatedResultContent = (value): void => {
-  channelRefs.value.forEach((channel) => {
+const setTranslatedResultContent = (value: string): void => {
+  channelRefMap.value.forEach((channel) => {
     channel.setTranslatedResultContent(value)
   })
 }
 
 /**
- * 设置显示翻译结果状态
- *
- * @param value 显示翻译结果
+ * 设置显示翻译结果状态（仅当前可见源）
  */
-const setShowResult = (value): void => {
-  channelRefs.value.forEach((channel) => {
+const setShowResult = (value: boolean): void => {
+  forEachVisibleChannel((channel) => {
     channel.setShowResult(value)
   })
 }
 
 /**
- * 设置显示翻译加载中状态
- *
- * @param value 加载中状态
+ * 设置显示翻译加载中状态（仅当前可见源）
  */
-const setIsResultLoading = (value): void => {
-  channelRefs.value.forEach((channel) => {
+const setIsResultLoading = (value: boolean): void => {
+  forEachVisibleChannel((channel) => {
     channel.setIsResultLoading(value)
   })
 }
@@ -87,12 +148,16 @@ const setIsResultLoading = (value): void => {
  * 清空翻译结果内容事件
  */
 const clearTranslatedResultContentEvent = (): void => {
-  channelRefs.value.forEach((channel) => {
+  channelRefMap.value.forEach((channel) => {
     channel.clearTranslatedResultContentEvent()
   })
 }
 
 defineExpose({
+  getPrimaryResultContent,
+  setPrimaryResultContent,
+  getChannelByServiceId,
+  setActiveServiceIds,
   setTranslatedResultContent,
   clearTranslatedResultContentEvent,
   setShowResult,

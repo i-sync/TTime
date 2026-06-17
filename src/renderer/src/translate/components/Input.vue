@@ -43,26 +43,25 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
 import { isNotNull, isNull } from '../../../../common/utils/validate'
-import LanguageEnum from '../../enums/LanguageEnum'
 
 import loadingImage from '../../assets/loading.gif'
 import translate from '../../utils/translate'
-import {
-  getTranslateServiceMapByUse,
-  TranslateServiceBuilder
-} from '../../utils/translateServiceUtil'
+import { TranslateServiceBuilder } from '../../utils/translateServiceUtil'
 import { cacheGet, cacheGetByType, cacheSetByType } from '../../utils/cacheUtil'
 import ElMessageExtend from '../../utils/messageExtend'
-import {
-  getLanguageNameConversion,
-  getLanguageResultNameConversion
-} from '../../utils/languageUtil'
 import { YesNoEnum } from '../../../../common/enums/YesNoEnum'
-import { findLanguageByLanguageName } from './channel/language/ChannelLanguage'
 import TranslateRecordVo from '../../../../common/class/TranslateRecordVo'
 import TranslateServiceRecordVo from '../../../../common/class/TranslateServiceRecordVo'
 import { StoreTypeEnum } from '../../../../common/enums/StoreTypeEnum'
 import { updateTranslateRecordList } from '../../utils/translateRecordUtil'
+import {
+  getActiveServicesForMode,
+  getEmptyModeMessage,
+  getTranslateMode,
+  resolveLanguageTypesForService,
+  resolveLanguagesForTranslate
+} from '../../utils/translateModeUtil'
+import { cacheSet } from '../../utils/cacheUtil'
 
 // 加载loading
 const loadingImageSrc = ref(loadingImage)
@@ -72,7 +71,11 @@ const isScreenshotEnd = ref(false)
 const translateContent = ref('')
 // 翻译输入框ref
 const translateContentInputRef = ref()
-const emit = defineEmits(['show-result-event', 'is-result-loading-event'])
+const emit = defineEmits([
+  'show-result-event',
+  'is-result-loading-event',
+  'active-services-changed'
+])
 
 watch(translateContent, () => {
   // 页面高度改变监听
@@ -198,31 +201,28 @@ const translateFun = (): void => {
   if (cacheGet('wrapReplaceSpaceStatus') === YesNoEnum.Y) {
     translateContentDealWith = translateContentDealWith.replaceAll('\n', ' ').replaceAll('\r', ' ')
   }
-  // 获取当前默认输入文字语言
-  let inputLanguage = cacheGet('inputLanguage')
-  // 获取当前默认输入文字语言类型
-  const languageInputType = inputLanguage.languageType
-  if (languageInputType === LanguageEnum.AUTO) {
-    // 自动检测输入文字的语言
-    const languageName = getLanguageNameConversion(translateContentDealWith)
-    inputLanguage = findLanguageByLanguageName(languageName)
+  const translateMode = getTranslateMode()
+  const { inputLanguage, resultLanguage } = resolveLanguagesForTranslate(
+    translateContentDealWith,
+    translateMode
+  )
+
+  const activeServices = getActiveServicesForMode(translateMode)
+  cacheSet(
+    'lastActiveServiceIds',
+    activeServices.map((s) => s.id)
+  )
+  emit(
+    'active-services-changed',
+    activeServices.map((s) => s.id)
+  )
+
+  if (activeServices.length === 0) {
+    ElMessageExtend.warning(getEmptyModeMessage(translateMode))
+    emit('is-result-loading-event', false)
+    return
   }
-  // 获取当前默认翻译结果文字语言
-  let resultLanguage = cacheGet('resultLanguage')
-  // 获取当前默认翻译结果文字语言类型
-  const languageResultType = resultLanguage.languageType
-  if (languageResultType === LanguageEnum.AUTO) {
-    // 自动检测翻译结果文字语言
-    // 根据输入的语言类型获取翻译结果的语言
-    const languageName = getLanguageResultNameConversion(translateContentDealWith)
-    resultLanguage = findLanguageByLanguageName(languageName)
-  }
-  // 设置显示翻译加载中状态
-  emit('is-result-loading-event', true)
-  // 应用翻译使用
-  window.api.ttimeApiTranslateUse()
-  // 获取当前正在使用的翻译源
-  const translateServiceMapData = getTranslateServiceMapByUse()
+
   // 构建翻译记录信息
   const translateRecordVo = TranslateRecordVo.build({
     translateContentDealWith,
@@ -230,36 +230,23 @@ const translateFun = (): void => {
     resultLanguage
   })
   const requestMap = new Map()
-  // 遍历当前正在使用的翻译源
-  for (const translateService of translateServiceMapData.values()) {
-    // 翻译源类型
+  for (const translateService of activeServices) {
     const type = translateService.type
-    // 如果不为自动识别 则从翻译源对应的文字语言中找到对应的语言代码
-    const inputServiceLanguage = inputLanguage?.serviceList?.find((service) => {
-      return service.type === translateService.type
-    })
-    if (isNull(inputServiceLanguage)) {
-      // 此处校验是用于用户在使用多翻译源情况下 部分翻译源支持某种语言 而部分翻译源不支持
-      window.api.apiTranslateResultMsgCallbackEvent(translateService.type, '不支持翻译当前语言')
+    const langTypes = resolveLanguageTypesForService(
+      type,
+      translateMode,
+      inputLanguage,
+      resultLanguage
+    )
+    if (isNull(langTypes)) {
       continue
     }
-    // 输入文字语言类型
-    const languageInputTypeRequest = inputServiceLanguage.languageType
-
-    const resultServiceLanguage = resultLanguage?.serviceList?.find((service) => {
-      return service.type === translateService.type
-    })
-    if (isNull(resultServiceLanguage)) {
-      window.api.apiTranslateResultMsgCallbackEvent(translateService.type, '不支持翻译当前语言结果')
-      continue
-    }
-    // 翻译结果语言类型
-    const languageResultTypeRequest = resultServiceLanguage.languageType
 
     let info = buildTranslateRequestInfo(
       translateContentDealWith,
-      languageInputTypeRequest,
-      languageResultTypeRequest
+      langTypes.languageInputType,
+      langTypes.languageResultType,
+      translateMode
     )
     info = {
       ...info,
@@ -276,6 +263,18 @@ const translateFun = (): void => {
     }
     requestMap.set(type, info)
   }
+
+  if (requestMap.size === 0) {
+    ElMessageExtend.warning('当前语言对不受已启用翻译源支持，请检查语言设置')
+    emit('is-result-loading-event', false)
+    return
+  }
+
+  // 设置显示翻译加载中状态
+  emit('is-result-loading-event', true)
+  // 应用翻译使用
+  window.api.ttimeApiTranslateUse()
+
   // 翻译记录状态
   const translateHistoryStatus = cacheGet('translateHistoryStatus') === YesNoEnum.Y
   if (translateHistoryStatus) {
@@ -333,18 +332,21 @@ const translateContentInputEvent = (): void => {
 const buildTranslateRequestInfo = (
   translateContentDealWith,
   languageType,
-  languageResultType
+  languageResultType,
+  translateMode
 ): {
   channel
   translateContent
   languageType
   languageResultType
+  translateMode
 } => {
   return {
     channel: 0,
     translateContent: translateContentDealWith,
     languageType: languageType,
-    languageResultType: languageResultType
+    languageResultType: languageResultType,
+    translateMode: translateMode
   }
 }
 
@@ -374,7 +376,8 @@ const clearTranslatedContentEvent = (): void => {
 defineExpose({
   getTranslateContent,
   setTranslateContent,
-  clearTranslatedContentEvent
+  clearTranslatedContentEvent,
+  translateFun
 })
 
 window.api.winFontSizeNotify(() => {

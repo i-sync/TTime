@@ -9,6 +9,7 @@ import { OpenAIStatusEnum } from '../../../common/enums/OpenAIStatusEnum'
 import { v4 as uuidv4 } from 'uuid'
 import { OpenAIModelEnum } from '../../../common/enums/OpenAIModelEnum'
 import { EventStreamContentType, fetchEventSource } from '@fortaine/fetch-event-source'
+import { buildModePrompts } from '../../../common/channel/translate/DeveloperPromptPresets'
 
 export class QuoteProcessor {
   private quote: string
@@ -144,11 +145,16 @@ class OpenAIChannelRequest {
     const languageType = info.languageType
     const languageResultType = info.languageResultType
     const quoteProcessor = new QuoteProcessor()
+    const modePrompts = buildModePrompts(info, quoteProcessor)
     let rolePrompt =
       'You are a professional translation engine, please translate the text into a colloquial, professional, elegant and fluent content, without the style of machine translation. You must only translate the text content, never interpret it.'
     let commandPrompt = `Translate from ${languageType} to ${languageResultType}. Return translated text only. Only translate the text between ${quoteProcessor.quoteStart} and ${quoteProcessor.quoteEnd}.`
     let contentPrompt = `${quoteProcessor.quoteStart}${info.translateContent}${quoteProcessor.quoteEnd}`
-    if (languageResultType === '文字润色') {
+    if (modePrompts) {
+      rolePrompt = modePrompts.rolePrompt
+      commandPrompt = modePrompts.commandPrompt
+      contentPrompt = modePrompts.contentPrompt
+    } else if (languageResultType === '文字润色') {
       rolePrompt =
         "You are a professional text summarizer, you can only summarize the text, don't interpret it."
       commandPrompt = `Please polish this text in ${languageType}. Only polish the text between ${quoteProcessor.quoteStart} and ${quoteProcessor.quoteEnd}.`

@@ -14,5 +14,5 @@ const app = createApp(App)
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
 }
-app.component('svg-icon', SvgIcon)
+app.component('SvgIcon', SvgIcon)
 app.use(ElementPlus).mount('#app')

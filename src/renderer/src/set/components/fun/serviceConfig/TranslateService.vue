@@ -1,36 +1,36 @@
 <template>
-  <div class='translate-service-layer'>
-    <div class='translate-service-div-block'>
-      <ul class='translate-service-list-block'>
+  <div class="translate-service-layer">
+    <div class="translate-service-div-block">
+      <ul class="translate-service-list-block">
         <el-scrollbar>
           <draggable
-            v-model='translateServiceList'
-            group='people'
-            chosen-class='chosen'
-            item-key='id'
-            animation='300'
-            @change='serviceSortDragChange'
+            v-model="translateServiceList"
+            group="people"
+            chosen-class="chosen"
+            item-key="id"
+            animation="300"
+            @change="serviceSortDragChange"
           >
-            <template #item='{ element }'>
+            <template #item="{ element }">
               <li
-                class='translate-service-block cursor-pointer none-select'
-                :class='{ active: translateServiceThis.id === element.id }'
-                @click='selectTranslateService(element)'
+                class="translate-service-block cursor-pointer none-select"
+                :class="{ active: translateServiceThis.id === element.id }"
+                @click="selectTranslateService(element)"
               >
-                <a class='translate-service-block none-select translate-service-expansion-block'>
-                  <div class='left'>
+                <a class="translate-service-block none-select translate-service-expansion-block">
+                  <div class="left">
                     <img
-                      class='translate-service-logo none-select'
-                      :src='element.serviceInfo.logo'
+                      class="translate-service-logo none-select"
+                      :src="element.serviceInfo.logo"
                     />
-                    <span class='translate-service-name none-select'>{{
-                        element.serviceName
-                      }}</span>
+                    <span class="translate-service-name none-select">{{
+                      element.serviceName
+                    }}</span>
                   </div>
-                  <div class='right'>
+                  <div class="right">
                     <el-switch
-                      v-model='element.useStatus'
-                      @change='serviceUseStatusChange(element)'
+                      v-model="element.useStatus"
+                      @change="serviceUseStatusChange(element)"
                     />
                   </div>
                 </a>
@@ -39,19 +39,19 @@
           </draggable>
         </el-scrollbar>
       </ul>
-      <div class='translate-service-edit'>
-        <div class='translate-service-edit-button'>
-          <el-tooltip placement='bottom-start'>
+      <div class="translate-service-edit">
+        <div class="translate-service-edit-button">
+          <el-tooltip placement="bottom-start">
             <template #content>添加翻译源</template>
-            <el-dropdown trigger='click' max-height='490px'>
-              <el-button :icon='Plus' size='small' />
+            <el-dropdown trigger="click" max-height="490px">
+              <el-button :icon="Plus" size="small" />
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item
-                    v-for='(translateServiceSelectMenu, key) in translateServiceSelectMenuList'
-                    :key='key'
-                    :divided='translateServiceSelectMenu.dividedStatus'
-                    @click='addTranslateService(translateServiceSelectMenu.type)'
+                    v-for="(translateServiceSelectMenu, key) in translateServiceSelectMenuList"
+                    :key="key"
+                    :divided="translateServiceSelectMenu.dividedStatus"
+                    @click="addTranslateService(translateServiceSelectMenu.type)"
                   >
                     {{ translateServiceSelectMenu.name }}
                   </el-dropdown-item>
@@ -60,145 +60,167 @@
             </el-dropdown>
           </el-tooltip>
         </div>
-        <el-tooltip placement='bottom-start'>
+        <el-tooltip placement="bottom-start">
           <template #content>删除翻译源</template>
-          <div class='translate-service-edit-button'>
-            <el-button :icon='Minus' size='small' @click='deleteTranslateService' />
+          <div class="translate-service-edit-button">
+            <el-button :icon="Minus" size="small" @click="deleteTranslateService" />
           </div>
         </el-tooltip>
 
-        <vip-info-service-buttons :service-type='ServiceTypeEnum.TRANSLATE' />
-
+        <vip-info-service-buttons :service-type="ServiceTypeEnum.TRANSLATE" />
       </div>
     </div>
-    <div class='translate-service-set-block'>
-      <div class='translate-service-set'>
-        <el-form v-if='!translateServiceThis.isBuiltIn' label-width='80px' label-position='left'>
-          <el-form-item label='名称'>
+    <div class="translate-service-set-block">
+      <div class="translate-service-set">
+        <el-form v-if="!translateServiceThis.isBuiltIn" label-width="80px" label-position="left">
+          <el-form-item label="名称">
             <el-input
-              v-model='translateServiceThis.serviceName'
-              type='text'
-              spellcheck='false'
-              @input='serviceNameInput'
+              v-model="translateServiceThis.serviceName"
+              type="text"
+              spellcheck="false"
+              @input="serviceNameInput"
             />
           </el-form-item>
 
           <el-form-item
-            v-if='translateServiceThis.type === TranslateServiceEnum.OPEN_AI'
-            label='请求地址'
+            v-if="translateServiceThis.type === TranslateServiceEnum.OPEN_AI"
+            label="请求地址"
           >
             <el-input
-              v-model='translateServiceThis.requestUrl'
-              type='text'
-              placeholder='https://api.openai.com'
-              spellcheck='false'
+              v-model="translateServiceThis.requestUrl"
+              type="text"
+              placeholder="https://api.openai.com"
+              spellcheck="false"
             />
-            <span class='form-switch-span'> 留空默认：https://api.openai.com </span>
+            <span class="form-switch-span">
+              留空默认：https://api.openai.com；地址不要包含 /v1 后缀，客户端会自动追加
+              /v1/chat/completions
+            </span>
           </el-form-item>
           <el-form-item
-            v-if='
-              translateServiceThis.type === TranslateServiceEnum.OPEN_AI ||
-              translateServiceThis.type === TranslateServiceEnum.AZURE_OPEN_AI
-            '
-            label='模型'
+            v-if="translateServiceThis.type === TranslateServiceEnum.OPEN_AI"
+            label="模型"
           >
-            <el-select v-model='translateServiceThis.model' size='small'>
+            <el-select
+              v-model="translateServiceThis.model"
+              size="small"
+              filterable
+              allow-create
+              default-first-option
+              placeholder="选择或输入模型名"
+            >
               <el-option
-                v-for='model in openAIModelList'
-                :key='model.value'
-                :label='model.label'
-                :value='model.value'
+                v-for="model in openAIModelList"
+                :key="model.value"
+                :label="model.label"
+                :value="model.value"
+              />
+            </el-select>
+            <span class="form-switch-span">
+              支持 OpenRouter 等兼容 API，例如 anthropic/claude-3.5-sonnet
+            </span>
+          </el-form-item>
+          <el-form-item
+            v-if="translateServiceThis.type === TranslateServiceEnum.AZURE_OPEN_AI"
+            label="模型"
+          >
+            <el-select v-model="translateServiceThis.model" size="small">
+              <el-option
+                v-for="model in openAIModelList"
+                :key="model.value"
+                :label="model.label"
+                :value="model.value"
               />
             </el-select>
           </el-form-item>
 
           <el-form-item
-            v-if='
+            v-if="
               !TranslateServiceBuilder.getServiceConfigInfo(translateServiceThis.type).isOneAppKey
-            '
-            label='AppId'
+            "
+            label="AppId"
           >
             <el-input
-              v-model='translateServiceThis.appId'
-              type='password'
+              v-model="translateServiceThis.appId"
+              type="password"
               show-password
-              placeholder='请输入AppId'
-              spellcheck='false'
+              placeholder="请输入AppId"
+              spellcheck="false"
             />
           </el-form-item>
-          <el-form-item label='AppKey'>
+          <el-form-item label="AppKey">
             <el-input
-              v-model='translateServiceThis.appKey'
-              type='password'
+              v-model="translateServiceThis.appKey"
+              type="password"
               show-password
-              placeholder='请输入密钥'
-              spellcheck='false'
+              placeholder="请输入密钥"
+              spellcheck="false"
             />
           </el-form-item>
 
           <el-form-item
-            v-if='translateServiceThis.type === TranslateServiceEnum.AZURE_OPEN_AI'
-            label='请求地址'
+            v-if="translateServiceThis.type === TranslateServiceEnum.AZURE_OPEN_AI"
+            label="请求地址"
           >
-            <el-input v-model='translateServiceThis.endpoint' type='text' spellcheck='false' />
+            <el-input v-model="translateServiceThis.endpoint" type="text" spellcheck="false" />
           </el-form-item>
           <el-form-item
-            v-if='translateServiceThis.type === TranslateServiceEnum.AZURE_OPEN_AI'
-            label='部署名称'
+            v-if="translateServiceThis.type === TranslateServiceEnum.AZURE_OPEN_AI"
+            label="部署名称"
           >
             <el-input
-              v-model='translateServiceThis.deploymentName'
-              type='text'
-              spellcheck='false'
+              v-model="translateServiceThis.deploymentName"
+              type="text"
+              spellcheck="false"
             />
           </el-form-item>
 
-          <div class='translate-service-set-fun'>
-            <div class='translate-service-use-text'>
-              <el-tag v-if='checkIngStatus' type='info' effect='dark'> 验证中...</el-tag>
-              <el-tag v-else-if='translateServiceThis.checkStatus' type='success' effect='dark'
-              >验证成功
+          <div class="translate-service-set-fun">
+            <div class="translate-service-use-text">
+              <el-tag v-if="checkIngStatus" type="info" effect="dark"> 验证中...</el-tag>
+              <el-tag v-else-if="translateServiceThis.checkStatus" type="success" effect="dark"
+                >验证成功
               </el-tag>
-              <el-tag v-else-if='!translateServiceThis.checkStatus' type='warning' effect='dark'
-              >待验证
+              <el-tag v-else-if="!translateServiceThis.checkStatus" type="warning" effect="dark"
+                >待验证
               </el-tag>
             </div>
-            <el-button plain :disabled='checkIngStatus' @click='translateServiceCheckAndSave'
-            >验证
+            <el-button plain :disabled="checkIngStatus" @click="translateServiceCheckAndSave"
+              >验证
             </el-button>
           </div>
-          <span class='form-switch-span'> 验证成功后将会保存配置信息 </span>
+          <span class="form-switch-span"> 验证成功后将会保存配置信息 </span>
         </el-form>
         <div v-else>
-          <span class='form-switch-span'> 内置翻译源 - 无需配置 </span>
+          <span class="form-switch-span"> 内置翻译源 - 无需配置 </span>
           <div
-            v-if='
+            v-if="
               translateServiceThis.type === TranslateServiceEnum.BING ||
               translateServiceThis.type === TranslateServiceEnum.BING_DICT
-            '
-            class='translate-service-bing-msg-block'
+            "
+            class="translate-service-bing-msg-block"
           >
             <el-divider />
-            <span class='translate-service-bing-msg-title'>建议：</span>
-            <span class='translate-service-bing-msg'>开启了Bing字典翻译源就不用再开启Bing翻译</span>
-            <span class='translate-service-bing-msg'>Bing翻译 = Bing翻译</span>
-            <span class='translate-service-bing-msg'>Bing字典 = Bing翻译 + Bing字典</span>
+            <span class="translate-service-bing-msg-title">建议：</span>
+            <span class="translate-service-bing-msg">开启了Bing字典翻译源就不用再开启Bing翻译</span>
+            <span class="translate-service-bing-msg">Bing翻译 = Bing翻译</span>
+            <span class="translate-service-bing-msg">Bing字典 = Bing翻译 + Bing字典</span>
           </div>
           <div
-            v-else-if='translateServiceThis.type === TranslateServiceEnum.EC_DICT'
-            class='translate-service-bing-msg-block'
+            v-else-if="translateServiceThis.type === TranslateServiceEnum.EC_DICT"
+            class="translate-service-bing-msg-block"
           >
             <el-divider />
-            <span class='translate-service-bing-msg-title'>注意：在使用前需要先导入离线库</span>
-            <span class='translate-service-bing-msg'>导入教程请查看官网：</span>
-            <span class='translate-service-bing-msg'>翻译源申请 -> 简明英汉词典(离线)</span>
+            <span class="translate-service-bing-msg-title">注意：在使用前需要先导入离线库</span>
+            <span class="translate-service-bing-msg">导入教程请查看官网：</span>
+            <span class="translate-service-bing-msg">翻译源申请 -> 简明英汉词典(离线)</span>
           </div>
         </div>
       </div>
     </div>
   </div>
 </template>
-<script setup lang='ts'>
+<script setup lang="ts">
 import { ref } from 'vue'
 import draggable from 'vuedraggable'
 import { Minus, Plus } from '@element-plus/icons-vue'
@@ -472,7 +494,7 @@ const serviceSortDragChange = (event): void => {
   const moved = event.moved
   // 将 Map 转换为数组
   const entries = Array.from(getTranslateServiceMap().entries())
-    // 交换索引位置
+  // 交换索引位置
   ;[entries[moved.oldIndex], entries[moved.newIndex]] = [
     entries[moved.newIndex],
     entries[moved.oldIndex]
@@ -522,10 +544,9 @@ window.api.refreshServiceInfoEvent(() => {
 })
 
 loadNewServiceInfo()
-
 </script>
 
-<style lang='scss' scoped>
+<style lang="scss" scoped>
 @import '../../../../css/set';
 
 .header {
