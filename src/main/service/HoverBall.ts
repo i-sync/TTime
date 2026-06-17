@@ -10,6 +10,7 @@ import { YesNoEnum } from '../../common/enums/YesNoEnum'
 import { isNotNull } from '../../common/utils/validate'
 import { spawn } from 'child_process'
 import StoreService from './StoreService'
+import { TranslateContentSourceEnum } from '../../common/enums/TranslateContentSourceEnum'
 
 if (!SystemTypeEnum.isMac()) {
 
@@ -183,7 +184,10 @@ if (!SystemTypeEnum.isMac()) {
       selectedText = GlobalShortcutEvent.splitSingleCamelCase(selectedText)
       selectedText = GlobalShortcutEvent.splitSingleUnderScore(selectedText)
       // 推送给Vue页面进行更新翻译输入内容
-      GlobalWin.mainWinUpdateTranslatedContent(selectedText)
+      GlobalWin.mainWinUpdateTranslatedContent(
+        selectedText,
+        TranslateContentSourceEnum.CHOICE
+      )
       GlobalWin.mainWinShow()
     })
   })

@@ -220,6 +220,18 @@ class StoreService {
       StoreService.configSet('clipboardListenerShowStatus', YesNoEnum.N)
       StoreService.configSet('clipboardListenerStatus', YesNoEnum.N)
     }
+    // 划词翻译默认对照模式
+    if (!StoreService.configHas('choiceTranslateCompareMode')) {
+      StoreService.configSet('choiceTranslateCompareMode', YesNoEnum.Y)
+    }
+    // 剪贴板英文自动对照
+    if (!StoreService.configHas('clipboardEnglishCompareMode')) {
+      StoreService.configSet('clipboardEnglishCompareMode', YesNoEnum.Y)
+    }
+    // Round-trip 检查提示
+    if (!StoreService.configHas('roundTripHintStatus')) {
+      StoreService.configSet('roundTripHintStatus', YesNoEnum.Y)
+    }
     // 初始化默认文字大小
     if (!StoreService.configHas('winFontSize')) {
       StoreService.configSet('winFontSize', 14)

@@ -42,28 +42,29 @@
 
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
-import { isNotNull, isNull } from '../../../../common/utils/validate'
+import { isNull } from '../../../../common/utils/validate'
 
 import loadingImage from '../../assets/loading.gif'
 import translate from '../../utils/translate'
-import { TranslateServiceBuilder } from '../../utils/translateServiceUtil'
 import { cacheGet, cacheGetByType, cacheSet } from '../../utils/cacheUtil'
 import ElMessageExtend from '../../utils/messageExtend'
 import { YesNoEnum } from '../../../../common/enums/YesNoEnum'
-import TranslateRecordVo from '../../../../common/class/TranslateRecordVo'
 import TranslateServiceRecordVo from '../../../../common/class/TranslateServiceRecordVo'
 import { StoreTypeEnum } from '../../../../common/enums/StoreTypeEnum'
 import { updateTranslateRecordList } from '../../utils/translateRecordUtil'
+import TranslateModeEnum from '../../../../common/enums/TranslateModeEnum'
+import { TranslateContentSourceEnum } from '../../../../common/enums/TranslateContentSourceEnum'
+import { getTranslateMode } from '../../utils/translateModeUtil'
+import { applyModeForExternalContent } from '../../utils/translateExternalEntryUtil'
 import {
-  getEmptyModeMessage,
-  getTranslateMode,
-  isAiTranslateService,
-  resolveActiveServicesForMode,
-  resolveLanguageTypesForService,
-  resolveLanguagesForTranslate,
-  shouldNotifyBindingFallback
-} from '../../utils/translateModeUtil'
-import { getCustomRolePrompt } from '../../utils/translateModeConfigUtil'
+  buildTranslateExecutionPlan,
+  isDualPolishCompareModes,
+  notifyBindingFallbackIfNeeded
+} from '../../utils/translateExecutionUtil'
+import {
+  clearRoundTripHintPending,
+  markCompareTranslatePending
+} from '../../utils/translateRoundTripHintUtil'
 
 // 加载loading
 const loadingImageSrc = ref(loadingImage)
@@ -76,7 +77,9 @@ const translateContentInputRef = ref()
 const emit = defineEmits([
   'show-result-event',
   'is-result-loading-event',
-  'active-services-changed'
+  'active-services-changed',
+  'service-mode-labels-changed',
+  'external-entry-mode-changed'
 ])
 
 watch(translateContent, () => {
@@ -93,8 +96,13 @@ window.api.screenshotEndNotifyEvent(() => {
 })
 
 // 监听更新翻译输入内容事件
-window.api.updateTranslateContentEvent((content) => {
+window.api.updateTranslateContentEvent((content, source) => {
+  const entrySource = source ?? TranslateContentSourceEnum.DEFAULT
+  const { modeChanged } = applyModeForExternalContent(content, entrySource)
   translateContent.value = content
+  if (modeChanged) {
+    emit('external-entry-mode-changed')
+  }
   translateFun()
 })
 
@@ -182,131 +190,106 @@ const translateChange = async (event): Promise<void> => {
   event.preventDefault()
 }
 
-/**
- * 翻译
- */
-const translateFun = (): void => {
-  emit('show-result-event', false)
-  // 翻译内容
+const prepareTranslateContent = (): string | null => {
   let translateContentDealWith = translateContent.value
   window.api.logInfoEvent('[翻译事件] - 翻译内容 : ', translateContentDealWith)
-  // 替换所有换行符、回车符后如果发送的消息还是为空则默认不继续进行操作
   if (isContentNull(translateContentDealWith)) {
     window.api.logInfoEvent('[翻译事件] - 翻译内容过滤后为空')
     translateContent.value = ''
-    // 屏幕截图识别中状态重置
     screenshotRestore()
     ElMessageExtend.warning('识别内容为空')
-    return
+    return null
   }
-  // 换行符替换为空格状态
   if (cacheGet('wrapReplaceSpaceStatus') === YesNoEnum.Y) {
     translateContentDealWith = translateContentDealWith.replaceAll('\n', ' ').replaceAll('\r', ' ')
   }
-  const translateMode = getTranslateMode()
-  const { inputLanguage, resultLanguage } = resolveLanguagesForTranslate(
-    translateContentDealWith,
-    translateMode
-  )
+  return translateContentDealWith
+}
 
-  const { services: activeServices, bindingFallback } = resolveActiveServicesForMode(translateMode)
-  if (bindingFallback && shouldNotifyBindingFallback(bindingFallback)) {
-    ElMessageExtend.warning(bindingFallback.message)
+const runTranslatePlan = (modes: string[]): void => {
+  const dualOutput = isDualPolishCompareModes(modes)
+  emit('show-result-event', false)
+  clearRoundTripHintPending()
+  const translateContentDealWith = prepareTranslateContent()
+  if (!translateContentDealWith) {
+    return
   }
-  const customRolePrompt = getCustomRolePrompt(translateMode)
-  cacheSet(
-    'lastActiveServiceIds',
-    activeServices.map((s) => s.id)
-  )
-  emit(
-    'active-services-changed',
-    activeServices.map((s) => s.id)
-  )
 
-  if (activeServices.length === 0) {
-    ElMessageExtend.warning(getEmptyModeMessage(translateMode))
+  const plan = buildTranslateExecutionPlan(translateContentDealWith, modes)
+  notifyBindingFallbackIfNeeded(plan.bindingFallback)
+
+  cacheSet('lastActiveServiceIds', plan.activeServiceIds)
+  const serviceModeLabels = dualOutput ? plan.serviceModeLabels : {}
+  cacheSet('activeServiceModeLabels', serviceModeLabels)
+  if (dualOutput) {
+    cacheSet('dualOutputActive', YesNoEnum.Y)
+    cacheSet('dualOutputPolishServiceId', plan.polishServiceId ?? '')
+    cacheSet('dualOutputCompareServiceId', plan.compareServiceId ?? '')
+  } else {
+    cacheSet('dualOutputActive', YesNoEnum.N)
+    cacheSet('dualOutputPolishServiceId', '')
+    cacheSet('dualOutputCompareServiceId', '')
+  }
+  emit('service-mode-labels-changed', serviceModeLabels)
+  emit('active-services-changed', plan.activeServiceIds)
+
+  if (plan.partialDualMessage) {
+    ElMessageExtend.warning(plan.partialDualMessage)
+  }
+
+  if (plan.emptyMessage) {
+    ElMessageExtend.warning(plan.emptyMessage)
     emit('is-result-loading-event', false)
     return
   }
 
-  // 构建翻译记录信息
-  const translateRecordVo = TranslateRecordVo.build({
-    translateContentDealWith,
-    inputLanguage,
-    resultLanguage
-  })
-  const requestMap = new Map()
-  for (const translateService of activeServices) {
-    const type = translateService.type
-    const langTypes = resolveLanguageTypesForService(
-      type,
-      translateMode,
-      inputLanguage,
-      resultLanguage
-    )
-    if (isNull(langTypes)) {
-      continue
-    }
-
-    let info = buildTranslateRequestInfo(
-      translateContentDealWith,
-      langTypes.languageInputType,
-      langTypes.languageResultType,
-      translateMode,
-      isAiTranslateService(type) ? customRolePrompt : '',
-      translateService.useProxy ?? YesNoEnum.N
-    )
-    info = {
-      ...info,
-      requestId: translateRecordVo.requestId,
-      id: translateService.id,
-      appId: translateService.appId,
-      appKey: translateService.appKey
-    }
-    const defaultInfo = TranslateServiceBuilder.getServiceConfigInfo(type).defaultInfo
-    if (isNotNull(defaultInfo)) {
-      Object.keys(defaultInfo).forEach((key) => {
-        info[key] = translateService[key]
-      })
-    }
-    requestMap.set(type, info)
-  }
-
-  if (requestMap.size === 0) {
+  if (plan.requestMap.size === 0) {
     ElMessageExtend.warning('当前语言对不受已启用翻译源支持，请检查语言设置')
     emit('is-result-loading-event', false)
     return
   }
 
-  // 设置显示翻译加载中状态
+  if (modes.includes(TranslateModeEnum.COMPARE)) {
+    markCompareTranslatePending()
+  }
+
   emit('is-result-loading-event', true)
-  // 应用翻译使用
   window.api.ttimeApiTranslateUse()
 
-  // 翻译记录状态
   const translateHistoryStatus = cacheGet('translateHistoryStatus') === YesNoEnum.Y
-  if (translateHistoryStatus) {
-    // 构建翻译记录信息
+  if (translateHistoryStatus && plan.translateRecordVo) {
     const translateServiceRecordList = []
-    requestMap.forEach((value, key) => {
+    plan.requestMap.forEach((value, key) => {
       const serviceRecordVo = new TranslateServiceRecordVo()
       serviceRecordVo.translateServiceType = key
-      serviceRecordVo.translateServiceId = value.id
+      serviceRecordVo.translateServiceId = value.id as string
       serviceRecordVo.translateStatus = false
       translateServiceRecordList.push(serviceRecordVo)
     })
-    translateRecordVo.translateServiceRecordList = translateServiceRecordList
+    plan.translateRecordVo.translateServiceRecordList = translateServiceRecordList
     let translateRecordList = cacheGetByType(StoreTypeEnum.HISTORY_RECORD, 'translateRecordList')
     translateRecordList = isNull(translateRecordList) ? [] : translateRecordList
-    translateRecordList.push(translateRecordVo)
-    // 更新翻译记录
+    translateRecordList.push(plan.translateRecordVo)
     updateTranslateRecordList(translateRecordList)
   }
-  // 触发翻译
-  requestMap.forEach((value, key) => {
-    // 此处触发之后会异步回调到 *ApiTranslateCallbackEvent 方法中去执行
+
+  plan.requestMap.forEach((value, key) => {
     window.api.apiUniteTranslate(key, value)
   })
+}
+
+/**
+ * 翻译（当前模式）
+ */
+const translateFun = (): void => {
+  runTranslatePlan([getTranslateMode()])
+}
+
+/**
+ * 一键润色 + 对照双输出
+ */
+const translateDualPolishCompareFun = (): void => {
+  runTranslatePlan([TranslateModeEnum.POLISH, TranslateModeEnum.COMPARE])
 }
 
 /**
@@ -337,33 +320,6 @@ const translateContentInputEvent = (): void => {
   }
 }
 
-const buildTranslateRequestInfo = (
-  translateContentDealWith,
-  languageType,
-  languageResultType,
-  translateMode,
-  customRolePrompt,
-  useProxy
-): {
-  channel
-  translateContent
-  languageType
-  languageResultType
-  translateMode
-  customRolePrompt
-  useProxy
-} => {
-  return {
-    channel: 0,
-    translateContent: translateContentDealWith,
-    languageType: languageType,
-    languageResultType: languageResultType,
-    translateMode: translateMode,
-    customRolePrompt: customRolePrompt,
-    useProxy: useProxy
-  }
-}
-
 /**
  * 获取翻译内容
  */
@@ -391,7 +347,8 @@ defineExpose({
   getTranslateContent,
   setTranslateContent,
   clearTranslatedContentEvent,
-  translateFun
+  translateFun,
+  translateDualPolishCompareFun
 })
 
 window.api.winFontSizeNotify(() => {

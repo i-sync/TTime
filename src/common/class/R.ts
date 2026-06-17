@@ -72,6 +72,7 @@ class R {
     const translateVo = new TranslateVo(data)
     translateVo.requestId = info.requestId
     translateVo.translateServiceId = info.id
+    translateVo.translateMode = info.translateMode
     return new R(code, '', translateVo)
   }
 

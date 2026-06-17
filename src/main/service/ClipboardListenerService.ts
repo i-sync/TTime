@@ -5,6 +5,7 @@ import { YesNoEnum } from '../../common/enums/YesNoEnum'
 import StoreService from './StoreService'
 import { GlobalShortcutEvent } from './GlobalShortcutEvent'
 import { SystemTypeEnum } from '../enums/SystemTypeEnum'
+import { TranslateContentSourceEnum } from '../../common/enums/TranslateContentSourceEnum'
 
 uIOhook.start()
 
@@ -25,7 +26,7 @@ uIOhook.on('keydown', (e: UiohookKeyboardEvent) => {
       text = GlobalShortcutEvent.splitSingleCamelCase(text)
       text = GlobalShortcutEvent.splitSingleUnderScore(text)
       // 推送给Vue页面进行更新翻译输入内容
-      GlobalWin.mainWinUpdateTranslatedContent(text)
+      GlobalWin.mainWinUpdateTranslatedContent(text, TranslateContentSourceEnum.CLIPBOARD)
       GlobalWin.mainWinShow()
     }, 300)
   }

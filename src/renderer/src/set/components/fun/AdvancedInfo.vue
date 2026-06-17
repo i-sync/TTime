@@ -40,6 +40,33 @@
       />
       <span class="form-switch-span none-select"> 当触发显示翻译窗口时不会清空上一次翻译内容 </span>
     </el-form-item>
+    <el-form-item class="none-select" label="划词翻译默认对照">
+      <el-checkbox
+        v-model="advancedSettingInfo.choiceTranslateCompareMode"
+        @change="choiceTranslateCompareModeEvent"
+      />
+      <span class="form-switch-span none-select">
+        开启后，划词翻译时自动切换到对照模式（英语 → 中文）
+      </span>
+    </el-form-item>
+    <el-form-item class="none-select" label="剪贴板英文自动对照">
+      <el-checkbox
+        v-model="advancedSettingInfo.clipboardEnglishCompareMode"
+        @change="clipboardEnglishCompareModeEvent"
+      />
+      <span class="form-switch-span none-select">
+        开启后，剪贴板监听检测到英文内容时自动切换到对照模式
+      </span>
+    </el-form-item>
+    <el-form-item class="none-select" label="Round-trip 检查提示">
+      <el-checkbox
+        v-model="advancedSettingInfo.roundTripHintStatus"
+        @change="roundTripHintStatusEvent"
+      />
+      <span class="form-switch-span none-select">
+        对照翻译完成后提示使用 ⇄ 将中文反译为英文，检查 round-trip 是否一致
+      </span>
+    </el-form-item>
 
     <span class="group-title-span none-select"> OCR设置 </span>
     <el-divider />
@@ -187,7 +214,10 @@ const advancedSettingInfo = ref({
   showTranslateNotEmptyStatus: cacheGet('showTranslateNotEmptyStatus') === YesNoEnum.Y,
   inputTranslationAutoStatus: cacheGet('inputTranslationAutoStatus') === YesNoEnum.Y,
   copyCamelCaseResultStatus: cacheGet('copyCamelCaseResultStatus') === YesNoEnum.Y,
-  copySnakeCaseResultStatus: cacheGet('copySnakeCaseResultStatus') === YesNoEnum.Y
+  copySnakeCaseResultStatus: cacheGet('copySnakeCaseResultStatus') === YesNoEnum.Y,
+  choiceTranslateCompareMode: cacheGet('choiceTranslateCompareMode') !== YesNoEnum.N,
+  clipboardEnglishCompareMode: cacheGet('clipboardEnglishCompareMode') !== YesNoEnum.N,
+  roundTripHintStatus: cacheGet('roundTripHintStatus') !== YesNoEnum.N
 })
 
 /**
@@ -220,6 +250,21 @@ const wrapReplaceSpaceStatusEvent = (val): void => {
 const showTranslateNotEmptyStatusEvent = (val): void => {
   cacheSet('showTranslateNotEmptyStatus', val ? YesNoEnum.Y : YesNoEnum.N)
   advancedSettingInfo.value.showTranslateNotEmptyStatus = val
+}
+
+const choiceTranslateCompareModeEvent = (val): void => {
+  cacheSet('choiceTranslateCompareMode', val ? YesNoEnum.Y : YesNoEnum.N)
+  advancedSettingInfo.value.choiceTranslateCompareMode = val
+}
+
+const clipboardEnglishCompareModeEvent = (val): void => {
+  cacheSet('clipboardEnglishCompareMode', val ? YesNoEnum.Y : YesNoEnum.N)
+  advancedSettingInfo.value.clipboardEnglishCompareMode = val
+}
+
+const roundTripHintStatusEvent = (val): void => {
+  cacheSet('roundTripHintStatus', val ? YesNoEnum.Y : YesNoEnum.N)
+  advancedSettingInfo.value.roundTripHintStatus = val
 }
 
 /**

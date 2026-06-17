@@ -106,8 +106,8 @@ const windowHeightChangeEvent = (): void => {
  * @param callback 回调方法 用于主进程内部触发时推送到Vue页面执行
  */
 const updateTranslateContentEvent = (callback): void => {
-  ipcRenderer.on('update-translated-content', (_event, content) => {
-    callback(content)
+  ipcRenderer.on('update-translated-content', (_event, content, source) => {
+    callback(content, source)
   })
 }
 

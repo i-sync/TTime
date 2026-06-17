@@ -13,6 +13,11 @@ class TranslateVo {
   translateServiceId: string
 
   /**
+   * 翻译模式（润色 / 对照 / 翻译）
+   */
+  translateMode: string
+
+  /**
    * 翻译结果列表
    */
   translateList: string[] | string
@@ -59,6 +64,7 @@ class TranslateVo {
   dictBuild(info, usPhonetic, ukPhonetic, usSpeech, ukSpeech, explains, wfs): void {
     this.requestId = info.requestId
     this.translateServiceId = info.id
+    this.translateMode = info.translateMode
     this.usPhonetic = usPhonetic
     this.ukPhonetic = ukPhonetic
     this.usSpeech = usSpeech
@@ -70,6 +76,7 @@ class TranslateVo {
   dictLessBuild(info, phonetic, explains, wfs): void {
     this.requestId = info.requestId
     this.translateServiceId = info.id
+    this.translateMode = info.translateMode
     this.phonetic = phonetic
     this.explains = explains
     this.wfs = wfs

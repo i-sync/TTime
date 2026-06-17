@@ -10,6 +10,9 @@
           <span class="content-translate-name none-select">
             {{ translateServiceThis.serviceName }}
           </span>
+          <span v-if="modeLabel" class="content-translate-mode-label none-select">
+            {{ modeLabel }}
+          </span>
           <img v-show="isResultLoading" class="content-translate-loading" :src="loadingImageSrc" />
         </div>
         <div class="function-tools-category content-tools-category">
@@ -135,10 +138,16 @@ import { updateTranslateRecord } from '../../../utils/translateRecordUtil'
 import { isEnglish } from '../../../utils/languageUtil'
 import { cacheGet } from '../../../utils/cacheUtil'
 import { YesNoEnum } from '../../../../../common/enums/YesNoEnum'
+import R from '../../../../../common/class/R'
+import {
+  clearRoundTripHintPending,
+  tryShowRoundTripHint
+} from '../../../utils/translateRoundTripHintUtil'
 
 // 翻译内容框内容
 const props = defineProps<{
   translateService: object
+  modeLabel?: string
 }>()
 
 /**
@@ -235,6 +244,12 @@ const copySnakeCase = (text): void => {
  * 翻译回调 - 异步处理
  */
 window.api[getTranslateServiceBackEventName(props.translateService)]((res) => {
+  if (res.code === R.ERROR || res.code === OpenAIStatusEnum.ERROR) {
+    clearRoundTripHintPending()
+    isResultLoading.value = false
+    return
+  }
+
   const data = res.data
   const translateList = data['translateList']
   const translatedResultContentTemp = translateList.join('\n')
@@ -251,6 +266,7 @@ window.api[getTranslateServiceBackEventName(props.translateService)]((res) => {
       data.translateList = [translatedResultContent.value]
       // 更新翻译记录
       updateTranslateRecord(data)
+      tryShowRoundTripHint(data.translateMode)
       // 在流式翻译结束后重新计算翻译结果容器高度
       adjustTextareaHeight()
       return
@@ -268,6 +284,7 @@ window.api[getTranslateServiceBackEventName(props.translateService)]((res) => {
   copySnakeCaseResultStatus.value = cacheGet('copySnakeCaseResultStatus') === YesNoEnum.Y
   // 更新翻译记录
   updateTranslateRecord(data)
+  tryShowRoundTripHint(data.translateMode)
 
   let explainListDeal = []
   if (!isNull(data?.explains)) {
@@ -438,6 +455,14 @@ defineExpose({
       font-size: 11px;
       font-weight: var(--ttime-translate-name-size);
       color: var(--ttime-text-color);
+    }
+
+    .content-translate-mode-label {
+      padding: 1px 6px;
+      font-size: 10px;
+      border-radius: 4px;
+      color: var(--ttime-translate-phonetic-type-color);
+      background: var(--ttime-translate-language-background);
     }
 
     .content-translate-loading {

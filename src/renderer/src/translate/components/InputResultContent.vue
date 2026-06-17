@@ -4,6 +4,7 @@
       v-show="isServiceVisible(translateService.id)"
       :ref="setChannelRef(translateService.id)"
       :translate-service="translateService"
+      :mode-label="serviceModeLabels[translateService.id] ?? ''"
     />
   </div>
 </template>
@@ -13,12 +14,19 @@ import InputResultContentChannel from './channel/InputResultContentChannel.vue'
 
 import { computed, ref } from 'vue'
 import { getTranslateServiceMapByUse } from '../../utils/translateServiceUtil'
-import { getActiveServicesForMode, getPrimaryServiceForMode } from '../../utils/translateModeUtil'
+import {
+  getActiveServicesForMode,
+  getPrimaryServiceForMode,
+  getTranslateMode
+} from '../../utils/translateModeUtil'
 import { cacheGet } from '../../utils/cacheUtil'
+import { YesNoEnum } from '../../../../common/enums/YesNoEnum'
+import TranslateModeEnum from '../../../../common/enums/TranslateModeEnum'
 import type { TranslateResultChannelApi } from '../types/TranslateResultChannelTypes'
 
 const channelRefMap = ref(new Map<string, TranslateResultChannelApi>())
 const activeServiceIds = ref<string[]>(getActiveServicesForMode().map((service) => service.id))
+const serviceModeLabels = ref<Record<string, string>>({})
 
 const allServices = computed(() => [...getTranslateServiceMapByUse().values()])
 
@@ -40,6 +48,8 @@ const initTranslateServiceMap = (): void => {
   } else {
     activeServiceIds.value = getActiveServicesForMode().map((service) => service.id)
   }
+  const cachedLabels = cacheGet('activeServiceModeLabels')
+  serviceModeLabels.value = cachedLabels && typeof cachedLabels === 'object' ? cachedLabels : {}
 }
 
 initTranslateServiceMap()
@@ -76,26 +86,46 @@ const forEachVisibleChannel = (fn: (channel: TranslateResultChannelApi) => void)
   })
 }
 
+const resolveDualOutputServiceId = (): string | undefined => {
+  if (cacheGet('dualOutputActive') !== YesNoEnum.Y) {
+    return undefined
+  }
+  const polishId = cacheGet('dualOutputPolishServiceId')
+  const compareId = cacheGet('dualOutputCompareServiceId')
+  if (getTranslateMode() === TranslateModeEnum.COMPARE) {
+    return compareId || undefined
+  }
+  return polishId || undefined
+}
+
+const resolvePrimaryServiceId = (): string | undefined => {
+  const dualServiceId = resolveDualOutputServiceId()
+  if (dualServiceId) {
+    return dualServiceId
+  }
+  return getPrimaryServiceForMode()?.id
+}
+
 /**
  * 获取主结果源内容
  */
 const getPrimaryResultContent = (): string => {
-  const primary = getPrimaryServiceForMode()
-  if (!primary) {
+  const serviceId = resolvePrimaryServiceId()
+  if (!serviceId) {
     return ''
   }
-  return getChannelByServiceId(primary.id)?.getTranslatedResultContent() ?? ''
+  return getChannelByServiceId(serviceId)?.getTranslatedResultContent() ?? ''
 }
 
 /**
  * 设置主结果源内容
  */
 const setPrimaryResultContent = (value: string): void => {
-  const primary = getPrimaryServiceForMode()
-  if (!primary) {
+  const serviceId = resolvePrimaryServiceId()
+  if (!serviceId) {
     return
   }
-  getChannelByServiceId(primary.id)?.setTranslatedResultContent(value)
+  getChannelByServiceId(serviceId)?.setTranslatedResultContent(value)
 }
 
 /**
@@ -104,6 +134,10 @@ const setPrimaryResultContent = (value: string): void => {
  * @param ids 活跃源 id 列表
  * @param clearInactive 翻译触发时清除非活跃源结果；模式切换时保留
  */
+const setServiceModeLabels = (labels: Record<string, string>): void => {
+  serviceModeLabels.value = labels ?? {}
+}
+
 const setActiveServiceIds = (ids: string[], clearInactive = false): void => {
   if (clearInactive) {
     const previousIds = new Set(activeServiceIds.value)
@@ -158,6 +192,7 @@ defineExpose({
   setPrimaryResultContent,
   getChannelByServiceId,
   setActiveServiceIds,
+  setServiceModeLabels,
   setTranslatedResultContent,
   clearTranslatedResultContentEvent,
   setShowResult,

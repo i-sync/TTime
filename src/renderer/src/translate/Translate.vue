@@ -21,9 +21,15 @@
         @show-result-event="(value) => translatedResultInput.setShowResult(value)"
         @is-result-loading-event="(value) => translatedResultInput.setIsResultLoading(value)"
         @active-services-changed="onActiveServicesChanged"
+        @service-mode-labels-changed="onServiceModeLabelsChanged"
+        @external-entry-mode-changed="onExternalEntryModeChanged"
       />
 
       <div v-show="!hideTranslateLanguage" class="result-actions-block">
+        <a class="result-action function-tools" @click="onDualPolishCompare">
+          <svg-icon icon-class="ai-translate" class="function-tools-icon result-action-icon" />
+          <span class="result-action-text">润色+对照</span>
+        </a>
         <a class="result-action function-tools" @click="onReplaceInputWithResult">
           <svg-icon icon-class="substitution" class="function-tools-icon result-action-icon" />
           <span class="result-action-text">用结果替换输入</span>
@@ -49,13 +55,14 @@ import { isNull } from '../../../common/utils/validate'
 import { buildTranslateService, setTranslateServiceMap } from '../utils/translateServiceUtil'
 import { buildOcrService, setOcrServiceMap } from '../utils/ocrServiceUtil'
 import { initTheme } from '../utils/themeUtil'
-import { cacheGet, oldCacheGet } from '../utils/cacheUtil'
+import { cacheGet, cacheSet, oldCacheGet } from '../utils/cacheUtil'
 import '../channel/ChannelRequest'
 import TranslateServiceEnum from '../../../common/enums/TranslateServiceEnum'
 import OcrServiceEnum from '../../../common/enums/OcrServiceEnum'
 import { loadNewServiceInfo } from '../utils/memberUtil'
 import { YesNoEnum } from '../../../common/enums/YesNoEnum'
 import { getActiveServicesForMode, initTranslateMode } from '../utils/translateModeUtil'
+import { clearRoundTripHintPending } from '../utils/translateRoundTripHintUtil'
 import { useTranslateWorkflow } from './composables/useTranslateWorkflow'
 
 initTheme()
@@ -87,6 +94,11 @@ window.api.pageHeightChangeEvent()
 loadNewServiceInfo()
 
 window.api.clearAllTranslateContentEvent(() => {
+  clearRoundTripHintPending()
+  cacheSet('dualOutputActive', YesNoEnum.N)
+  cacheSet('dualOutputPolishServiceId', '')
+  cacheSet('dualOutputCompareServiceId', '')
+  cacheSet('activeServiceModeLabels', {})
   translatedResultInput.value?.clearTranslatedResultContentEvent()
   translateInput.value?.clearTranslatedContentEvent()
 })
@@ -101,6 +113,18 @@ window.api.winShowByInputEvent(() => {
 
 const onActiveServicesChanged = (ids: string[]): void => {
   translatedResultInput.value?.setActiveServiceIds(ids, true)
+}
+
+const onServiceModeLabelsChanged = (labels: Record<string, string>): void => {
+  translatedResultInput.value?.setServiceModeLabels(labels)
+}
+
+const onExternalEntryModeChanged = (): void => {
+  onModeChanged()
+}
+
+const onDualPolishCompare = (): void => {
+  translateInput.value?.translateDualPolishCompareFun()
 }
 
 if (isNull(cacheGet('translateServiceMap'))) {
@@ -188,6 +212,7 @@ window.api.showMsgEvent((type, msg) => {
 .result-actions-block {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   margin: 0 12px 8px 12px;
 
   .result-action {
