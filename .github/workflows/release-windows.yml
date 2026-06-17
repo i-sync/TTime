@@ -12,6 +12,11 @@ permissions:
 jobs:
   build-windows:
     runs-on: windows-latest
+    env:
+      # GHA runners pre-set VCINSTALLDIR for VS 2026 without VSCMD_VER, which
+      # breaks node-gyp 8.x. Clear it so detection uses the VS setup module.
+      VCINSTALLDIR: ''
+      VCToolsInstallDir: ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Read version
         id: version
@@ -27,7 +32,13 @@ jobs:
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
-        run: npm run npm-i-extend-modules-update
+        shell: pwsh
+        run: |
+          Remove-Item Env:VCINSTALLDIR -ErrorAction SilentlyContinue
+          Remove-Item Env:VCToolsInstallDir -ErrorAction SilentlyContinue
+          npm install --ignore-scripts
+          npx electron-builder install-app-deps
+          npm run modules-update
 
       - name: Build Windows installer
         env:

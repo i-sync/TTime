@@ -72,5 +72,8 @@
     "vue": "^3.2.45",
     "vue-router": "^4.1.6",
     "vuedraggable": "^4.1.0"
+  },
+  "overrides": {
+    "node-gyp": "^11.2.0"
   }
 }
