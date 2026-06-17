@@ -24,6 +24,8 @@
   },
   "dependencies": {
     "@alicloud/alimt20181012": "^1.0.4",
+    "@alicloud/openapi-client": "^0.4.15",
+    "@alicloud/tea-util": "^1.4.11",
     "@electron-toolkit/preload": "^1.0.2",
     "@electron-toolkit/utils": "^1.0.2",
     "@fortaine/fetch-event-source": "^3.0.6",
