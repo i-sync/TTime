@@ -519,4 +519,5 @@ git commit -m "fix(translate): isolate openai per-source proxy"
 - 2026-06-20: Addressed review P2 by returning `OpenAIStreamRequest.translate(payload)` from the IPC handler.
 - 2026-06-20: Verified locally with `npm run lint`, `npm exec eslint -- . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts,.vue`, `npm run typecheck`, `npm run build`, and a `tsx` quote/SSE parser probe.
 - 2026-06-20: Committed implementation as `7c252cd fix(translate): isolate openai per-source proxy`; slice commit checkpoints are covered by that final commit.
-- Not completed locally: live `npm run dev` manual behavior check against real OpenRouter/API credentials plus a configured proxy.
+- 2026-06-20: `npm run dev` compiled main/preload and started the renderer dev server at `http://localhost:9098/`, then Electron exited with `Running as root without --no-sandbox is not supported`; GUI manual verification could not be completed in this environment.
+- Not completed locally: live GUI behavior check against real OpenRouter/API credentials plus a configured proxy.
