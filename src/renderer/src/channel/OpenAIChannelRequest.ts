@@ -1,10 +1,4 @@
 import { isNull } from '../../../common/utils/validate'
-import HttpMethodType from '../enums/HttpMethodTypeClassEnum'
-import request from '../utils/requestNotHandle'
-import R from '../../../common/class/R'
-import AgentTranslateCallbackVo from '../../../common/class/AgentTranslateCallbackVo'
-import TranslateServiceEnum from '../../../common/enums/TranslateServiceEnum'
-import { commonError } from '../utils/RequestUtil'
 import { OpenAIModelEnum } from '../../../common/enums/OpenAIModelEnum'
 import { buildModePrompts } from '../../../common/channel/translate/DeveloperPromptPresets'
 import { QuoteProcessor } from '../../../common/channel/translate/QuoteProcessor'
@@ -103,37 +97,11 @@ class OpenAIChannelRequest {
     if (isNull(info.requestUrl)) {
       info.requestUrl = OpenAIModelEnum.REQUEST_URL
     }
-    const requestInfo = {
-      baseURL: info.requestUrl,
-      url: '/v1/chat/completions',
-      method: HttpMethodType.POST,
-      data,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + info.appKey
-      }
-    }
-    request(requestInfo).then(
-      (data) => {
-        const error = data['error']
-        if (error) {
-          window.api['agentApiTranslateCallback'](
-            R.errorD(
-              new AgentTranslateCallbackVo(info, commonError(TranslateServiceEnum.OPEN_AI, error))
-            )
-          )
-          return
-        }
-        window.api['agentApiTranslateCallback'](R.okD(new AgentTranslateCallbackVo(info, data)))
-      },
-      (err) => {
-        window.api['agentApiTranslateCallback'](
-          R.errorD(
-            new AgentTranslateCallbackVo(info, commonError(TranslateServiceEnum.OPEN_AI, err))
-          )
-        )
-      }
-    )
+    window.api.apiOpenAICheckTranslate({
+      provider: 'openai',
+      info,
+      data
+    })
   }
 }
 

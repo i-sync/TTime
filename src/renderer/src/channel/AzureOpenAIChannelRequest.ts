@@ -1,9 +1,3 @@
-import HttpMethodType from '../enums/HttpMethodTypeClassEnum'
-import request from '../utils/requestNotHandle'
-import R from '../../../common/class/R'
-import AgentTranslateCallbackVo from '../../../common/class/AgentTranslateCallbackVo'
-import TranslateServiceEnum from '../../../common/enums/TranslateServiceEnum'
-import { commonError } from '../utils/RequestUtil'
 import { buildModePrompts } from '../../../common/channel/translate/DeveloperPromptPresets'
 import { QuoteProcessor } from '../../../common/channel/translate/QuoteProcessor'
 
@@ -96,41 +90,11 @@ class AzureOpenAIChannelRequest {
   static openaiCheck = (info): void => {
     const isCheckRequest = true
     const { data } = AzureOpenAIChannelRequest.buildOpenAIRequest(info, isCheckRequest)
-    const requestInfo = {
-      baseURL: info.endpoint,
-      url:
-        '/openai/deployments/' + info.deploymentName + '/chat/completions?api-version=2023-05-15',
-      method: HttpMethodType.POST,
-      data,
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': `${info.appKey}`
-      }
-    }
-    request(requestInfo).then(
-      (data) => {
-        const error = data['error']
-        if (error) {
-          window.api['agentApiTranslateCallback'](
-            R.errorD(
-              new AgentTranslateCallbackVo(
-                info,
-                commonError(TranslateServiceEnum.AZURE_OPEN_AI, error)
-              )
-            )
-          )
-          return
-        }
-        window.api['agentApiTranslateCallback'](R.okD(new AgentTranslateCallbackVo(info, data)))
-      },
-      (err) => {
-        window.api['agentApiTranslateCallback'](
-          R.errorD(
-            new AgentTranslateCallbackVo(info, commonError(TranslateServiceEnum.AZURE_OPEN_AI, err))
-          )
-        )
-      }
-    )
+    window.api.apiOpenAICheckTranslate({
+      provider: 'azureOpenAI',
+      info,
+      data
+    })
   }
 }
 

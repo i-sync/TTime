@@ -272,6 +272,8 @@ const useProxyEnabled = computed({
 
 const useProxyStatusChange = (): void => {
   saveService(translateServiceThis.value)
+  window.api.updateTranslateServiceNotify()
+  saveServiceInfoHandle(ServiceTypeEnum.TRANSLATE)
 }
 
 // 可添加的翻译源列表 先把 values 格式转换为数组

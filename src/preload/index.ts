@@ -211,6 +211,13 @@ const apiOpenAIStreamTranslate = (payload): Promise<void> => {
 }
 
 /**
+ * OpenAI/AzureOpenAI 校验密钥
+ */
+const apiOpenAICheckTranslate = (payload): Promise<void> => {
+  return ipcRenderer.invoke('api-openai-check-translate', payload)
+}
+
+/**
  * 应用启动
  */
 const ttimeApiAppStart = (): void => {
@@ -318,6 +325,7 @@ const api = {
   winShowByInputEvent,
   apiUniteTranslate,
   apiOpenAIStreamTranslate,
+  apiOpenAICheckTranslate,
   ttimeApiAppStart,
   updateTranslateServiceEvent,
   updateTranslateServiceNotify,

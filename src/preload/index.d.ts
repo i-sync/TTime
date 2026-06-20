@@ -16,6 +16,7 @@ declare global {
     winShowByInputEvent(callback: () => void): void
     apiUniteTranslate(type: string, info: object): void
     apiOpenAIStreamTranslate(payload: object): Promise<void>
+    apiOpenAICheckTranslate(payload: object): Promise<void>
     showMsgEvent(callback: (type: string, msg: string) => void): void
     updateTranslateServiceEvent(callback: () => void): void
     updateTranslateServiceNotify(): void

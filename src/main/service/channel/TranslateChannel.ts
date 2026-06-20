@@ -4,6 +4,7 @@ import R from '../../../common/class/R'
 import TranslateChannelFactory from './factory/TranslateChannelFactory'
 import OcrChannelFactory from './factory/OcrChannelFactory'
 import OpenAIStreamRequest from './openai/OpenAIStreamRequest'
+import OpenAICheckRequest from './openai/OpenAICheckRequest'
 
 /**
  * 翻译
@@ -20,6 +21,13 @@ ipcMain.handle('api-unite-translate', (_event, channel, info) => {
  */
 ipcMain.handle('api-openai-stream-translate', async (_event, payload) => {
   return OpenAIStreamRequest.translate(payload)
+})
+
+/**
+ * OpenAI/AzureOpenAI 校验密钥
+ */
+ipcMain.handle('api-openai-check-translate', async (_event, payload) => {
+  return OpenAICheckRequest.translate(payload)
 })
 
 /**
