@@ -204,6 +204,13 @@ const apiUniteTranslate = (type, info): void => {
 }
 
 /**
+ * OpenAI/AzureOpenAI 流式翻译
+ */
+const apiOpenAIStreamTranslate = (payload): Promise<void> => {
+  return ipcRenderer.invoke('api-openai-stream-translate', payload)
+}
+
+/**
  * 应用启动
  */
 const ttimeApiAppStart = (): void => {
@@ -310,6 +317,7 @@ const api = {
   winShowEvent,
   winShowByInputEvent,
   apiUniteTranslate,
+  apiOpenAIStreamTranslate,
   ttimeApiAppStart,
   updateTranslateServiceEvent,
   updateTranslateServiceNotify,

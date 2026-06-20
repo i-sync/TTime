@@ -12,7 +12,7 @@ import { isMemberVip } from './memberUtil'
  * @param translateVo 翻译结果
  */
 export const updateTranslateRecord = (translateVo): void => {
-  let requestId = translateVo['requestId']
+  const requestId = translateVo['requestId']
   // 翻译记录
   const translateRecordList = cacheGetByType(StoreTypeEnum.HISTORY_RECORD, 'translateRecordList')
   for (let i = 0; i < translateRecordList.length; i++) {

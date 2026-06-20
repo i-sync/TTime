@@ -8,7 +8,7 @@ import { injectAgentBySetAgentFieldName } from '../../../utils/RequestUtil'
  *
  * @param info 翻译信息
  */
-const apiTranslate = async (info) => {
+const apiTranslate = async (info): Promise<$alimt20181012.TranslateGeneralResponse> => {
   const configInfo = {}
   await injectAgentBySetAgentFieldName(configInfo, 'httpsProxy')
   const config = new $OpenApi.Config({

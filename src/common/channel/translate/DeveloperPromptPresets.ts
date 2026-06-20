@@ -4,7 +4,7 @@ import { getDefaultRolePrompt } from './ModePromptDefaults'
 export function buildModePrompts(
   info,
   quoteProcessor: { quoteStart: string; quoteEnd: string }
-): { rolePrompt: string; commandPrompt: string; contentPrompt: string } {
+): { rolePrompt: string; commandPrompt: string; contentPrompt: string } | null {
   const { quoteStart, quoteEnd } = quoteProcessor
   const languageType = info.languageType
   const languageResultType = info.languageResultType

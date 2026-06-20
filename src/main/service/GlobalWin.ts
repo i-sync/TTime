@@ -418,7 +418,7 @@ class GlobalWin {
   /**
    * 强制显示设置窗口
    */
-  static forceShowSetWin() {
+  static forceShowSetWin(): void {
     if (isNull(GlobalWin.setWin)) {
       createSetWindow()
     }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-unused-vars */
 const fs = require('fs')
 const path = require('path')
 const chalk = require('chalk')

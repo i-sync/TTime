@@ -1,141 +1,11 @@
-import { isNotNull, isNull } from '../../../common/utils/validate'
 import HttpMethodType from '../enums/HttpMethodTypeClassEnum'
 import request from '../utils/requestNotHandle'
 import R from '../../../common/class/R'
 import AgentTranslateCallbackVo from '../../../common/class/AgentTranslateCallbackVo'
 import TranslateServiceEnum from '../../../common/enums/TranslateServiceEnum'
 import { commonError } from '../utils/RequestUtil'
-import { OpenAIStatusEnum } from '../../../common/enums/OpenAIStatusEnum'
-import { v4 as uuidv4 } from 'uuid'
-import { EventStreamContentType, fetchEventSource } from '@fortaine/fetch-event-source'
 import { buildModePrompts } from '../../../common/channel/translate/DeveloperPromptPresets'
-import { createSessionProxyRelease } from '../utils/proxyUtil'
-
-export class QuoteProcessor {
-  private quote: string
-  public quoteStart: string
-  public quoteEnd: string
-  private prevQuoteStartBuffer: string
-  private prevQuoteEndBuffer: string
-
-  constructor() {
-    this.quote = uuidv4().replace(/-/g, '').slice(0, 4)
-    this.quoteStart = `<${this.quote}>`
-    this.quoteEnd = `</${this.quote}>`
-    this.prevQuoteStartBuffer = ''
-    this.prevQuoteEndBuffer = ''
-  }
-
-  public processText(text: string): string {
-    const deltas = text.split('')
-    const targetPieces = deltas.map((delta) => this.processTextDelta(delta))
-    return targetPieces.join('')
-  }
-
-  private processTextDelta(textDelta: string): string {
-    if (textDelta === '') {
-      return ''
-    }
-    if (textDelta.trim() === this.quoteEnd) {
-      return ''
-    }
-    let result = textDelta
-    // process quote start
-    let quoteStartBuffer = this.prevQuoteStartBuffer
-    // console.debug('\n\n')
-    // console.debug('---- process quote start -----')
-    // console.debug('textDelta', textDelta)
-    // console.debug('this.quoteStartbuffer', this.quoteStartBuffer)
-    // console.debug('start loop:')
-    let startIdx = 0
-    for (let i = 0; i < textDelta.length; i++) {
-      const char = textDelta[i]
-      // console.debug(`---- i: ${i} startIdx: ${startIdx} ----`)
-      // console.debug('char', char)
-      // console.debug('quoteStartBuffer', quoteStartBuffer)
-      // console.debug('result', result)
-      if (char === this.quoteStart[quoteStartBuffer.length]) {
-        if (this.prevQuoteStartBuffer.length > 0) {
-          if (i === startIdx) {
-            quoteStartBuffer += char
-            result = textDelta.slice(i + 1)
-            startIdx += 1
-          } else {
-            result = this.prevQuoteStartBuffer + textDelta
-            quoteStartBuffer = ''
-            break
-          }
-        } else {
-          quoteStartBuffer += char
-          result = textDelta.slice(i + 1)
-        }
-      } else {
-        if (quoteStartBuffer.length === this.quoteStart.length) {
-          quoteStartBuffer = ''
-          break
-        }
-        if (quoteStartBuffer.length > 0) {
-          result = this.prevQuoteStartBuffer + textDelta
-          quoteStartBuffer = ''
-          break
-        }
-      }
-    }
-    // console.debug('end loop!')
-    this.prevQuoteStartBuffer = quoteStartBuffer
-    // console.debug('result', result)
-    // console.debug('this.quoteStartBuffer', this.quoteStartBuffer)
-    // console.debug('---- end of process quote start -----')
-    textDelta = result
-    // process quote end
-    let quoteEndBuffer = this.prevQuoteEndBuffer
-    // console.debug('\n\n')
-    // console.debug('---- start process quote end -----')
-    // console.debug('textDelta', textDelta)
-    // console.debug('this.quoteEndBuffer', this.quoteEndBuffer)
-    // console.debug('start loop:')
-    let endIdx = 0
-    for (let i = 0; i < textDelta.length; i++) {
-      const char = textDelta[i]
-      // console.debug(`---- i: ${i}, endIdx: ${endIdx} ----`)
-      // console.debug('char', char)
-      // console.debug('quoteEndBuffer', quoteEndBuffer)
-      // console.debug('result', result)
-      if (char === this.quoteEnd[quoteEndBuffer.length]) {
-        if (this.prevQuoteEndBuffer.length > 0) {
-          if (i === endIdx) {
-            quoteEndBuffer += char
-            result = textDelta.slice(i + 1)
-            endIdx += 1
-          } else {
-            result = this.prevQuoteEndBuffer + textDelta
-            quoteEndBuffer = ''
-            break
-          }
-        } else {
-          quoteEndBuffer += char
-          result = textDelta.slice(0, textDelta.length - quoteEndBuffer.length)
-        }
-      } else {
-        if (quoteEndBuffer.length === this.quoteEnd.length) {
-          quoteEndBuffer = ''
-          break
-        }
-        if (quoteEndBuffer.length > 0) {
-          result = this.prevQuoteEndBuffer + textDelta
-          quoteEndBuffer = ''
-          break
-        }
-      }
-    }
-    // console.debug('end loop!')
-    this.prevQuoteEndBuffer = quoteEndBuffer
-    // console.debug('totally result', result)
-    // console.debug('this.quoteEndBuffer', this.quoteEndBuffer)
-    // console.debug('---- end of process quote end -----')
-    return result
-  }
-}
+import { QuoteProcessor } from '../../../common/channel/translate/QuoteProcessor'
 
 class AzureOpenAIChannelRequest {
   static buildOpenAIRequest(
@@ -203,120 +73,19 @@ class AzureOpenAIChannelRequest {
    */
   static openaiTranslate = async (info): Promise<void> => {
     const isCheckRequest = false
-    const releaseSessionProxy = createSessionProxyRelease(info.useProxy)
     const { data, quoteProcessor } = AzureOpenAIChannelRequest.buildOpenAIRequest(
       info,
       isCheckRequest
     )
-    window.api['agentApiTranslateCallback'](
-      R.okD(
-        new AgentTranslateCallbackVo(info, {
-          code: OpenAIStatusEnum.START
-        })
-      )
-    )
-    let text = ''
-    await fetchEventSource(
-      info.endpoint +
-        '/openai/deployments/' +
-        info.deploymentName +
-        '/chat/completions?api-version=2023-05-15',
-      {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': `${info.appKey}`
-        },
-        async onopen(response) {
-          if (
-            response.ok &&
-            response.headers.get('content-type').indexOf(EventStreamContentType) !== -1
-          ) {
-            return // everything's good
-          } else {
-            releaseSessionProxy()
-            window.api.logInfoEvent('[AzureOpenAI翻译事件] - error 连接失败 :', {
-              status: response.status,
-              statusText: response.statusText
-            })
-            window.api['agentApiTranslateCallback'](
-              R.errorD(
-                new AgentTranslateCallbackVo(info, {
-                  code: OpenAIStatusEnum.ERROR,
-                  error: '连接失败'
-                })
-              )
-            )
-          }
-        },
-        onmessage(msg) {
-          // console.log('value = ', msg.data)
-          const value = msg.data
-          try {
-            const dataArray = value.split('data: ')
-            dataArray.forEach((data) => {
-              data = data.trim().replace(/data:/g, '')
-              if (isNull(data) || data === '[DONE]') {
-                return
-              }
-              data = JSON.parse(data)
-              if (isNotNull(data['error'])) {
-                window.api['agentApiTranslateCallback'](
-                  R.errorD(
-                    new AgentTranslateCallbackVo(info, {
-                      code: OpenAIStatusEnum.ERROR,
-                      error: data
-                    })
-                  )
-                )
-                return
-              }
-              let content = data['choices'][0]['delta']['content']
-              if (isNull(content)) {
-                return
-              }
-              content = quoteProcessor.processText(content)
-              text += content
-              window.api['agentApiTranslateCallback'](
-                R.okD(
-                  new AgentTranslateCallbackVo(info, {
-                    code: OpenAIStatusEnum.ING,
-                    content: content
-                  })
-                )
-              )
-            })
-          } catch (e) {
-            window.api.logErrorEvent('[AzureOpenAI翻译事件] - parse error : ', text, msg)
-          }
-        },
-        onclose() {
-          releaseSessionProxy()
-          window.api['agentApiTranslateCallback'](
-            R.okD(
-              new AgentTranslateCallbackVo(info, {
-                code: OpenAIStatusEnum.END
-              })
-            )
-          )
-          window.api.logInfoEvent('[AzureOpenAI翻译事件] - 响应报文 : ', text)
-        },
-        onerror(err) {
-          releaseSessionProxy()
-          window.api.logInfoEvent('[AzureOpenAI翻译事件] - error {}', err)
-          window.api['agentApiTranslateCallback'](
-            R.errorD(
-              new AgentTranslateCallbackVo(info, {
-                code: OpenAIStatusEnum.ERROR,
-                error: err
-              })
-            )
-          )
-          throw err
-        }
+    await window.api.apiOpenAIStreamTranslate({
+      provider: 'azureOpenAI',
+      info,
+      data,
+      quoteProcessorState: {
+        quoteStart: quoteProcessor.quoteStart,
+        quoteEnd: quoteProcessor.quoteEnd
       }
-    )
+    })
   }
 
   /**

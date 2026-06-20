@@ -6,6 +6,7 @@
     "src/main/*",
     "src/main/service/*",
     "src/main/service/channel/*",
+    "src/main/service/channel/openai/*",
     "src/main/service/channel/factory/*",
     "src/main/service/channel/interfaces/*",
     "src/main/service/channel/product/*",
@@ -18,6 +19,7 @@
     "src/common/enums/*",
     "src/common/class/*",
     "src/common/utils/*",
+    "src/common/channel/translate/*",
     "src/common/channel/translate/info/*"
   ],
   "compilerOptions": {

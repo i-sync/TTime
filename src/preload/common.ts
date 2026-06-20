@@ -83,7 +83,7 @@ const cacheDelete = (storeTypeEnum, key): void => {
 /**
  * 跳转页面
  */
-const jumpToPage = (url) => {
+const jumpToPage = (url): void => {
   ipcRenderer.send('jump-to-page-event', url)
 }
 

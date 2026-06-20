@@ -92,7 +92,7 @@ export const getTranslateServiceMapByUse = (): Map<unknown, unknown> => {
   return translateServiceMapData
 }
 
-export const buildTranslateService = (type: any): {} => {
+export const buildTranslateService = (type: any): object => {
   const info: {
     name: string
     // 是否需要秘钥
@@ -180,7 +180,11 @@ export class TranslateServiceBuilder {
    * @param type 服务类型
    * @param logo 服务logo
    */
-  static buildServiceInfo(name: string, type: string, logo: string): { name: string; type: string; logo: string } {
+  static buildServiceInfo(
+    name: string,
+    type: string,
+    logo: string
+  ): { name: string; type: string; logo: string } {
     return { name, type, logo }
   }
 

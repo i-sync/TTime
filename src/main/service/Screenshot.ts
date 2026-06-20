@@ -28,7 +28,7 @@ app.whenReady().then(() => {
  * 处理图片文字识别
  */
 ipcMain.handle('handle-image-text-recognition-event', async (_event, imgByBase64) => {
-  // @ts-ignore
+  // @ts-ignore screen image service map stores tuple values
   const ocrService = StoreService.configGet('ocrServiceMap').filter(
     (ocrService) => ocrService[1].useStatus
   )[0][1]

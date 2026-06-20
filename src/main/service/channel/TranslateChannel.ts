@@ -3,6 +3,7 @@ import GlobalWin from '../GlobalWin'
 import R from '../../../common/class/R'
 import TranslateChannelFactory from './factory/TranslateChannelFactory'
 import OcrChannelFactory from './factory/OcrChannelFactory'
+import OpenAIStreamRequest from './openai/OpenAIStreamRequest'
 
 /**
  * 翻译
@@ -12,6 +13,13 @@ import OcrChannelFactory from './factory/OcrChannelFactory'
  */
 ipcMain.handle('api-unite-translate', (_event, channel, info) => {
   TranslateChannelFactory.translate(channel, info)
+})
+
+/**
+ * OpenAI/AzureOpenAI 流式翻译
+ */
+ipcMain.handle('api-openai-stream-translate', async (_event, payload) => {
+  return OpenAIStreamRequest.translate(payload)
 })
 
 /**
