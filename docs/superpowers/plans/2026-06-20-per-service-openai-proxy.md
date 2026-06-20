@@ -107,7 +107,7 @@ Run: `npm run typecheck`
 
 Expected: imports resolve in both node and web TS configs.
 
-- [ ] **Step 6: Commit this slice**
+- [x] **Step 6: Commit this slice**
 
 ```bash
 git add src/common/channel/translate/QuoteProcessor.ts src/renderer/src/channel/OpenAIChannelRequest.ts src/renderer/src/channel/AzureOpenAIChannelRequest.ts
@@ -170,7 +170,7 @@ Run: `npm run typecheck:node`
 
 Expected: either pass, or fail only on pre-existing unrelated issues. Fix type errors introduced by this task.
 
-- [ ] **Step 4: Commit this slice**
+- [x] **Step 4: Commit this slice**
 
 ```bash
 git add src/main/service/channel/openai/OpenAIProxy.ts
@@ -219,7 +219,7 @@ Run: `npm run typecheck:node`
 
 Expected: introduced files typecheck.
 
-- [ ] **Step 5: Commit this slice**
+- [x] **Step 5: Commit this slice**
 
 ```bash
 git add src/main/service/channel/openai/OpenAIStreamParser.ts
@@ -319,7 +319,7 @@ Run: `npm run typecheck:node`
 
 Expected: pass for introduced main-process files.
 
-- [ ] **Step 8: Commit this slice**
+- [x] **Step 8: Commit this slice**
 
 ```bash
 git add src/main/service/channel/openai/OpenAIStreamRequest.ts src/main/service/channel/openai/OpenAIProxy.ts src/main/service/channel/openai/OpenAIStreamParser.ts
@@ -372,7 +372,7 @@ Run: `npm run typecheck`
 
 Expected: new API is visible to renderer.
 
-- [ ] **Step 5: Commit this slice**
+- [x] **Step 5: Commit this slice**
 
 ```bash
 git add src/main/service/channel/TranslateChannel.ts src/preload/index.ts src/preload/index.d.ts
@@ -437,7 +437,7 @@ Run: `npm run typecheck:web`
 
 Expected: no unused imports or missing preload typings.
 
-- [ ] **Step 6: Commit this slice**
+- [x] **Step 6: Commit this slice**
 
 ```bash
 git add src/renderer/src/channel/OpenAIChannelRequest.ts src/renderer/src/channel/AzureOpenAIChannelRequest.ts src/renderer/src/utils/proxyUtil.ts
@@ -495,7 +495,7 @@ Use an OpenAI-compatible test response, or temporarily instrument parser-level c
 confirm the UI does not display generated quote marker tags such as `<abcd>` or `</abcd>` even
 when the model streams marker characters in separate chunks.
 
-- [ ] **Step 7: Final commit**
+- [x] **Step 7: Final commit**
 
 ```bash
 git status --short
@@ -518,4 +518,5 @@ git commit -m "fix(translate): isolate openai per-source proxy"
 - 2026-06-20: Addressed review P1 by applying `QuoteProcessor.processText(...)` in main-process streaming before `ING` callbacks, including split marker chunks.
 - 2026-06-20: Addressed review P2 by returning `OpenAIStreamRequest.translate(payload)` from the IPC handler.
 - 2026-06-20: Verified locally with `npm run lint`, `npm exec eslint -- . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts,.vue`, `npm run typecheck`, `npm run build`, and a `tsx` quote/SSE parser probe.
-- Not completed locally: slice commits/final commit and live `npm run dev` manual behavior check against real OpenRouter/API credentials plus a configured proxy.
+- 2026-06-20: Committed implementation as `7c252cd fix(translate): isolate openai per-source proxy`; slice commit checkpoints are covered by that final commit.
+- Not completed locally: live `npm run dev` manual behavior check against real OpenRouter/API credentials plus a configured proxy.
