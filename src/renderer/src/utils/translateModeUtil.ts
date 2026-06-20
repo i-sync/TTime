@@ -16,6 +16,11 @@ import {
 
 export const PSEUDO_LANGUAGE_NAMES = ['文字润色', '总结', '分析', '解释代码']
 
+type TranslateLanguage = {
+  languageType?: string
+  serviceList?: Array<{ type: string; languageType: string }>
+}
+
 const AI_SERVICE_TYPES = [
   TranslateServiceEnum.OPEN_AI,
   TranslateServiceEnum.AZURE_OPEN_AI,
@@ -147,7 +152,7 @@ function isServiceAllowedForMode(service: { type: string }, mode: string): boole
  */
 export function getBindableServicesForMode(mode: string): any[] {
   const allowedTypes = new Set(MODE_PRIORITY[mode] || [])
-  return [...getTranslateServiceMapByUse().values()].filter((service) =>
+  return [...getTranslateServiceMapByUse().values()].filter((service: any) =>
     allowedTypes.has(service.type)
   )
 }
@@ -233,8 +238,8 @@ export function getPrimaryServiceForMode(mode?: string): any | null {
 export function resolveLanguageTypesForService(
   serviceType: string,
   translateMode: string,
-  inputLanguage: object,
-  resultLanguage: object
+  inputLanguage: TranslateLanguage,
+  resultLanguage: TranslateLanguage
 ): { languageInputType: string; languageResultType: string } | null {
   if (serviceType === TranslateServiceEnum.TTIME_AI) {
     if (translateMode === TranslateModeEnum.POLISH) {
@@ -260,7 +265,7 @@ export function resolveLanguageTypesForService(
 export function resolveLanguagesForTranslate(
   translateContent: string,
   translateMode: string
-): { inputLanguage: object; resultLanguage: object } {
+): { inputLanguage: TranslateLanguage; resultLanguage: TranslateLanguage } {
   let inputLanguage = cacheGet('inputLanguage')
   let resultLanguage = cacheGet('resultLanguage')
 

@@ -9,7 +9,7 @@ declare global {
     ocrAlwaysOnTopEvent
     updateImg
     updateText
-    winSizeUpdate
+    winSizeUpdate(callback: (newBounds: { width: number; height: number }) => void): void
     base64ImgWriteShearPlateEvent
     updateTranslatedContentEvent
   }

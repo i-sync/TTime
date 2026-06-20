@@ -17,8 +17,14 @@ import ElMessageExtend from './messageExtend'
 
 export type TranslateRequestPayload = Record<string, unknown>
 
+export type TranslateExecutionRequest = {
+  serviceId: string
+  serviceType: string
+  payload: TranslateRequestPayload
+}
+
 export type TranslateExecutionPlan = {
-  requestMap: Map<string, TranslateRequestPayload>
+  requests: TranslateExecutionRequest[]
   activeServiceIds: string[]
   serviceModeLabels: Record<string, string>
   modesFulfilled: string[]
@@ -93,7 +99,7 @@ export function buildTranslateExecutionPlan(
   translateContentDealWith: string,
   modes: string[]
 ): TranslateExecutionPlan {
-  const requestMap = new Map<string, TranslateRequestPayload>()
+  const requests: TranslateExecutionRequest[] = []
   const activeServiceIds: string[] = []
   const serviceModeLabels: Record<string, string> = {}
   const usedServiceIds = new Set<string>()
@@ -121,9 +127,6 @@ export function buildTranslateExecutionPlan(
         continue
       }
       const type = translateService.type
-      if (requestMap.has(type)) {
-        continue
-      }
 
       const langTypes = resolveLanguageTypesForService(
         type,
@@ -151,6 +154,8 @@ export function buildTranslateExecutionPlan(
       info = {
         ...info,
         id: translateService.id,
+        serviceId: translateService.id,
+        serviceType: type,
         appId: translateService.appId,
         appKey: translateService.appKey
       }
@@ -160,7 +165,11 @@ export function buildTranslateExecutionPlan(
           info[key] = translateService[key]
         })
       }
-      requestMap.set(type, info)
+      requests.push({
+        serviceId: translateService.id,
+        serviceType: type,
+        payload: info
+      })
     }
 
     if (modeFulfilled) {
@@ -180,7 +189,7 @@ export function buildTranslateExecutionPlan(
 
   if (activeServiceIds.length === 0) {
     return {
-      requestMap,
+      requests,
       activeServiceIds,
       serviceModeLabels,
       modesFulfilled,
@@ -203,12 +212,12 @@ export function buildTranslateExecutionPlan(
     resultLanguage
   })
 
-  requestMap.forEach((info) => {
-    info.requestId = translateRecordVo.requestId
+  requests.forEach((request) => {
+    request.payload.requestId = translateRecordVo.requestId
   })
 
   return {
-    requestMap,
+    requests,
     activeServiceIds,
     serviceModeLabels,
     modesFulfilled,

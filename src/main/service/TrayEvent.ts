@@ -104,7 +104,7 @@ class TrayEvent {
     } else if (SystemTypeEnum.isWin()) {
       iconPath = path.join(__dirname, '../../public/icon-1024x1024.png')
     } else {
-      iconPath = path.join(__dirname, '../../public/logo-16x16.png')
+      iconPath = path.join(__dirname, '../../public/icon-16x16.png')
     }
     if (SystemTypeEnum.isMac()) {
       const icon = nativeImage.createFromPath(iconPath)

@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import InputResultContentChannel from './channel/InputResultContentChannel.vue'
 
-import { computed, ref } from 'vue'
+import { computed, ref, type VNodeRef } from 'vue'
 import { getTranslateServiceMapByUse } from '../../utils/translateServiceUtil'
 import {
   getActiveServicesForMode,
@@ -22,13 +22,18 @@ import {
 import { cacheGet } from '../../utils/cacheUtil'
 import { YesNoEnum } from '../../../../common/enums/YesNoEnum'
 import TranslateModeEnum from '../../../../common/enums/TranslateModeEnum'
-import type { TranslateResultChannelApi } from '../types/TranslateResultChannelTypes'
+import type {
+  TranslateResultChannelApi,
+  TranslateServiceView
+} from '../types/TranslateResultChannelTypes'
 
 const channelRefMap = ref(new Map<string, TranslateResultChannelApi>())
 const activeServiceIds = ref<string[]>(getActiveServicesForMode().map((service) => service.id))
 const serviceModeLabels = ref<Record<string, string>>({})
 
-const allServices = computed(() => [...getTranslateServiceMapByUse().values()])
+const allServices = computed<TranslateServiceView[]>(
+  () => [...getTranslateServiceMapByUse().values()] as TranslateServiceView[]
+)
 
 const isServiceVisible = (serviceId: string): boolean => {
   if (activeServiceIds.value.length === 0) {
@@ -64,10 +69,10 @@ window.api.updateTranslateServiceEvent(() => {
 /**
  * 设置通道 ref（按 serviceId 索引）
  */
-const setChannelRef = (serviceId: string): ((el: TranslateResultChannelApi | null) => void) => {
-  return (el: TranslateResultChannelApi | null): void => {
+const setChannelRef = (serviceId: string): VNodeRef => {
+  return (el): void => {
     if (el) {
-      channelRefMap.value.set(serviceId, el)
+      channelRefMap.value.set(serviceId, el as unknown as TranslateResultChannelApi)
     } else {
       channelRefMap.value.delete(serviceId)
     }

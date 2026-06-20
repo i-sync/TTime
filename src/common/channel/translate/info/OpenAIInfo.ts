@@ -7,6 +7,7 @@ export default {
   // 构建时默认信息
   defaultInfo: {
     model: 'gpt-3.5-turbo',
+    customModel: '',
     requestUrl: 'https://api.openai.com',
     useProxy: 'N'
   },

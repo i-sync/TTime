@@ -94,6 +94,7 @@ import translate from '../../../../utils/translate'
 import { isNull } from '../../../../../../common/utils/validate'
 import TranslateServiceRecordVo from '../../../../../../common/class/TranslateServiceRecordVo'
 import { TranslateServiceBuilder } from '../../../../utils/translateServiceUtil'
+import type { DictResultExpand } from '../../../../translate/types/TranslateResultChannelTypes'
 
 // 翻译内容框内容
 const props = defineProps<{
@@ -120,7 +121,7 @@ watch(
 
 // 翻译结果
 const translatedResultContent = ref('')
-const dictTranslatedResultExpand = ref({})
+const dictTranslatedResultExpand = ref<DictResultExpand>({})
 // 是否正在加载翻译结果
 const isResultLoading = ref(false)
 // 显示翻译结果
@@ -220,7 +221,7 @@ const init = (): void => {
     ukPhonetic: data['ukPhonetic'],
     usSpeech: data['usSpeech'],
     ukSpeech: data['ukSpeech'],
-    wfsList: data['wfs'],
+    wfsList: data['wfs'] as DictResultExpand['wfsList'],
     explainList: explainListDeal
   }
 }

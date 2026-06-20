@@ -143,10 +143,14 @@ import {
   clearRoundTripHintPending,
   tryShowRoundTripHint
 } from '../../../utils/translateRoundTripHintUtil'
+import type {
+  DictResultExpand,
+  TranslateServiceView
+} from '../../../translate/types/TranslateResultChannelTypes'
 
 // 翻译内容框内容
 const props = defineProps<{
-  translateService: object
+  translateService: TranslateServiceView
   modeLabel?: string
 }>()
 
@@ -172,23 +176,31 @@ watch(
 )
 // 加载loading
 const loadingImageSrc = ref(loadingImage)
-const translateServiceThis = ref(props.translateService)
+const translateServiceThis = ref<TranslateServiceView>(props.translateService)
 
 // 翻译结果
 const translatedResultContent = ref('')
-const dictTranslatedResultExpand = ref({})
+const dictTranslatedResultExpand = ref<DictResultExpand>({})
 // 是否正在加载翻译结果
 const isResultLoading = ref(false)
 // 显示翻译结果
 const showResult = ref(false)
 // 翻译结果内容容器
-const translatedResultContentRef = ref('')
+const translatedResultContentRef = ref<{ ref?: HTMLTextAreaElement } | null>(null)
 // 复制驼峰命名按钮显示
 const copyCamelCaseResultStatus = ref(cacheGet('copyCamelCaseResultStatus') === YesNoEnum.Y)
 // 复制下划线命名按钮显示
 const copySnakeCaseResultStatus = ref(cacheGet('copySnakeCaseResultStatus') === YesNoEnum.Y)
 // 复制特殊结果显示
 const copySpecialResultShow = ref(false)
+
+const resolveCallbackServiceId = (data): string | undefined => {
+  return data?.translateServiceId ?? data?.id ?? data?.request?.id
+}
+
+const resolveCallbackRequestId = (data): string | undefined => {
+  return data?.requestId ?? data?.request?.requestId
+}
 
 /**
  * 显示翻译结果
@@ -244,13 +256,23 @@ const copySnakeCase = (text): void => {
  * 翻译回调 - 异步处理
  */
 window.api[getTranslateServiceBackEventName(props.translateService)]((res) => {
+  const data = res.data
+  const activeRequestId = cacheGet('activeTranslateRequestId')
+  const callbackServiceId = resolveCallbackServiceId(data)
+  const callbackRequestId = resolveCallbackRequestId(data)
+  if (callbackServiceId && callbackServiceId !== translateServiceThis.value['id']) {
+    return
+  }
+  if (activeRequestId && callbackRequestId && callbackRequestId !== activeRequestId) {
+    return
+  }
+
   if (res.code === R.ERROR || res.code === OpenAIStatusEnum.ERROR) {
     clearRoundTripHintPending()
     isResultLoading.value = false
     return
   }
 
-  const data = res.data
   const translateList = data['translateList']
   const translatedResultContentTemp = translateList.join('\n')
   if (isStreamTranslateService()) {
@@ -394,7 +416,7 @@ watch(translatedResultContent, () => {
  * 是否流式翻译服务
  */
 const isStreamTranslateService = (): boolean => {
-  const type = props.translateService['type']
+  const type = props.translateService.type
   return (
     TranslateServiceEnum.OPEN_AI === type ||
     TranslateServiceEnum.AZURE_OPEN_AI === type ||

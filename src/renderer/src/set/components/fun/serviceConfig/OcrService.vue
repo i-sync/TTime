@@ -232,13 +232,19 @@ import VipInfoServiceButtons from './vip/VipInfoServiceButtons.vue'
 // Ocr服务验证状态
 const checkIngStatus = ref(false)
 // 可添加的翻译源列表 先把 values 格式转换为数组
-const ocrServiceSelectMenuListTemp = Array.from(OcrServiceBuilder.getServiceList().values())
+const ocrServiceSelectMenuListTemp = Array.from(OcrServiceBuilder.getServiceList().values()) as Array<{
+  name: string
+  type: string
+  logo: string
+  isBuiltIn?: boolean
+  dividedStatus?: boolean
+}>
 // 这里获取翻译源对应的内置翻译源状态
 ocrServiceSelectMenuListTemp.forEach((service) => {
   service['isBuiltIn'] = buildOcrService(service.type)?.['isBuiltIn']
 })
 // 根据内置状态进行排序分组
-ocrServiceSelectMenuListTemp.sort((a, b) => a['isBuiltIn'] - b['isBuiltIn'])
+ocrServiceSelectMenuListTemp.sort((a, b) => Number(a['isBuiltIn']) - Number(b['isBuiltIn']))
 // 因为是否内置翻译源只有两种状态 是 与 否
 // 获取第一条数据的内置状态
 const lastIsBuiltIn = ocrServiceSelectMenuListTemp[0]['isBuiltIn']

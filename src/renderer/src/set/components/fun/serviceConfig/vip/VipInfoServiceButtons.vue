@@ -3,7 +3,11 @@
     <el-tooltip placement='bottom-start'>
       <template #content>设置密钥</template>
       <div class='translate-service-edit-button'>
-        <el-button :icon='Key' size='small' @click='vipInfoServiceRef.translateServiceKeyShowFun' />
+        <el-button
+          :icon='Key'
+          size='small'
+          @click='vipInfoServiceRef?.translateServiceKeyShowFun()'
+        />
       </div>
     </el-tooltip>
     <el-tooltip placement='bottom-start'>
@@ -15,7 +19,11 @@
     <el-tooltip placement='bottom-start'>
       <template #content>查看备份历史</template>
       <div class='translate-service-edit-button'>
-        <el-button :icon='Clock' size='small' @click='vipInfoServiceRef.translateServiceInfoRecordShowFun' />
+        <el-button
+          :icon='Clock'
+          size='small'
+          @click='vipInfoServiceRef?.translateServiceInfoRecordShowFun()'
+        />
       </div>
     </el-tooltip>
   </template>
@@ -39,8 +47,13 @@ const props = defineProps({
   }
 })
 
+interface VipInfoServiceApi {
+  translateServiceKeyShowFun(): void
+  translateServiceInfoRecordShowFun(): void
+}
+
 // 会员功能服务
-const vipInfoServiceRef = ref('')
+const vipInfoServiceRef = ref<VipInfoServiceApi>()
 
 const loadNewServiceInfoFun = (): void => {
   if (isNull(cacheGet('translateServiceKey'))) {

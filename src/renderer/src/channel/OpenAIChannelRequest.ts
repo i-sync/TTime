@@ -10,10 +10,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { OpenAIModelEnum } from '../../../common/enums/OpenAIModelEnum'
 import { EventStreamContentType, fetchEventSource } from '@fortaine/fetch-event-source'
 import { buildModePrompts } from '../../../common/channel/translate/DeveloperPromptPresets'
-import {
-  disableSessionProxyAfterService,
-  enableSessionProxyForService
-} from '../utils/proxyUtil'
+import { createSessionProxyRelease } from '../utils/proxyUtil'
 
 export class QuoteProcessor {
   private quote: string
@@ -148,6 +145,8 @@ class OpenAIChannelRequest {
   ): { data: object; quoteProcessor: QuoteProcessor } {
     const languageType = info.languageType
     const languageResultType = info.languageResultType
+    const model =
+      info.model === OpenAIModelEnum.CUSTOM ? String(info.customModel ?? '').trim() : info.model
     const quoteProcessor = new QuoteProcessor()
     const modePrompts = buildModePrompts(info, quoteProcessor)
     let rolePrompt =
@@ -179,7 +178,7 @@ class OpenAIChannelRequest {
     }
     return {
       data: {
-        model: info.model,
+        model,
         // 控制随机性：随着 temperature 接近 0 ，重复提交的内容，返回的结果将变得具有确定性和重复性
         // 一个介于 0 和 1 之间的值 可以为0.1这样的小数
         // 每次提交相同的内容时 按照 0 - 1 的概率返回不同的答案
@@ -207,7 +206,7 @@ class OpenAIChannelRequest {
    */
   static openaiTranslate = async (info): Promise<void> => {
     const isCheckRequest = false
-    const proxyWasEnabled = enableSessionProxyForService(info.useProxy)
+    const releaseSessionProxy = createSessionProxyRelease(info.useProxy)
     const { data, quoteProcessor } = OpenAIChannelRequest.buildOpenAIRequest(info, isCheckRequest)
     window.api['agentApiTranslateCallback'](
       R.okD(
@@ -234,7 +233,7 @@ class OpenAIChannelRequest {
         ) {
           return // everything's good
         } else {
-          disableSessionProxyAfterService(proxyWasEnabled)
+          releaseSessionProxy()
           window.api.logInfoEvent('[OpenAI翻译事件] - error 连接失败 :', {
             status: response.status,
             statusText: response.statusText
@@ -291,7 +290,7 @@ class OpenAIChannelRequest {
         }
       },
       onclose() {
-        disableSessionProxyAfterService(proxyWasEnabled)
+        releaseSessionProxy()
         window.api['agentApiTranslateCallback'](
           R.okD(
             new AgentTranslateCallbackVo(info, {
@@ -302,7 +301,7 @@ class OpenAIChannelRequest {
         window.api.logInfoEvent('[OpenAI翻译事件] - 响应报文 : ', text)
       },
       onerror(err) {
-        disableSessionProxyAfterService(proxyWasEnabled)
+        releaseSessionProxy()
         window.api.logInfoEvent('[OpenAI翻译事件] - error {}', err)
         window.api['agentApiTranslateCallback'](
           R.errorD(

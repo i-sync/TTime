@@ -2,12 +2,12 @@ import { ElectronAPI } from '@electron-toolkit/preload'
 
 declare global {
   interface api {
-    windowHeightChangeEvent(callback: () => void): void
+    windowHeightChangeEvent(callback?: () => void): void
     updateTranslateContentEvent(callback: (content: string, source?: string) => void): void
     clearAllTranslateContentEvent(callback: () => void): void
     pageHeightChangeEvent(): void
     openSetPageEvent(): void
-    alwaysOnTopEvent(callback: (status: string) => void): void
+    alwaysOnTopEvent(status: boolean): void
     windowHeightChangeMaxEvent(): void
     logInfoEvent(...args: unknown[]): void
     logErrorEvent(...args: unknown[]): void
@@ -25,8 +25,8 @@ declare global {
     updateCacheEvent(callback: () => void): void
     ttimeApiAppStart(): void
     ttimeApiTranslateUse(): void
-    winFontSizeNotify(callback: () => void): void
-    winSizeUpdate(callback: () => void): void
+    winFontSizeNotify(callback?: () => void): void
+    winSizeUpdate(callback: (newBounds: { width: number; height: number }) => void): void
   }
 
   interface Window {

@@ -1,9 +1,9 @@
 # TTime AI 翻译优化分析与改造方案
 
-> 文档版本：v1.3（实施完成版）  
-> 日期：2026-06-17  
+> 文档版本：v1.4（实施审计与修正版）
+> 日期：2026-06-20
 > 用途：汇总需求分析、现状差距与分阶段改造计划  
-> **实施状态**：Phase 1–3 已完成（`6dac552` / `dfa10b9` / `8b47cc1`）；#13 不实施
+> **实施状态**：Phase 1–3 已完成并补充质量修复；#13 不实施；v0.9.16 修复多 OpenAI 实例、按源代理释放保护、模型配置与发布防降级
 
 ---
 
@@ -351,7 +351,7 @@ function getPrimaryResultContent(): string {
 | 配置项 | Phase 1 现状 | Phase 1 改造 |
 |--------|-------------|-------------|
 | 请求地址 | 已支持自定义 | 增加 URL 校验与说明 |
-| 模型（OpenAI） | 仅 gpt-3.5 下拉 | **改为可自由输入** + 常用模型快捷选项 |
+| 模型（OpenAI） | 仅 gpt-3.5 下拉 | **预设模型下拉 + 自定义模型字段** |
 | 模型（AzureOpenAI） | 使用 `deploymentName` | **不在 Phase 1 改造范围**（现有 deployment 配置已足够） |
 | AppKey | 已支持 | 不变 |
 | 代理 | 全局 | Phase 2 按源配置 |
@@ -378,7 +378,7 @@ function getPrimaryResultContent(): string {
 | **对照** | `DEEP_L_BUILT_IN` → `DEEP_L` → OpenAI → AzureOpenAI → TTimeAI（AI 路径使用忠实 Prompt） |
 | **翻译** | OpenAI → AzureOpenAI → TTimeAI |
 
-仅对 `activeServices` 构建 `requestMap` 并发起请求；**不对**被跳过的源调用 `apiTranslateResultMsgCallbackEvent`。
+仅对 `activeServices` 构建执行请求列表（按 `serviceId` 区分实例）并发起请求；**不对**被跳过的源调用 `apiTranslateResultMsgCallbackEvent`。
 
 **空态处理（Phase 1）：** 若 `activeServices` 为空（例如润色模式未配置任何 AI 源），显示单条明确提示，例如：
 
@@ -531,14 +531,17 @@ src/renderer/src/channel/
 | 切换不像 DeepL | ✅ 对照/翻译：`onSwapSymmetric`；润色：`onPolishToVerify` |
 | 无 translateMode 链路 | ✅ `translateExecutionUtil` + `DeveloperPromptPresets` |
 | 润色入口太深 | ✅ 顶部模式切换 + 润色+对照按钮 |
-| 代理全局化 | ✅ 按源 `useProxy`（Phase 2） |
-| OpenAI 模型不可自由输入 | ✅ `allow-create` 模型名（Phase 1） |
+| 代理全局化 | ✅ 按源 `useProxy`（Phase 2）；流式 AI 请求仍使用 Electron session 临时代理，已增加引用计数、一次性释放和日志 |
+| OpenAI 模型不可自由输入 | ✅ 预设模型 + 「自定义」模型名字段，避免选择/输入混合 |
 | 多源并行报错噪音 | ✅ 按模式路由，空态单条提示 |
+| 多个 OpenAI 兼容源只输出一个 | ✅ 执行计划按 `serviceId` 发起请求，结果按 `translateServiceId/requestId` 隔离 |
+| 版本降级提示 | ✅ 版本提升到 `0.9.16`，自动更新使用语义版本比较，发布流水线校验 tag 与 `package.json` 一致 |
 
 ### 已知小边界（不阻塞使用）
 
 - 对照 API **业务失败**时若走 `okIT` 错误文案，偶发误弹 Round-trip 成功提示（主路径正常）
 - 双输出主结果源依赖 cache 中的 `dualOutput*` 键，清空内容时会重置
+- 按源代理的流式 AI 请求仍是 session 级临时代理，不是 request-local 代理；当前通过引用计数与一次性释放降低并发污染风险
 
 ---
 
@@ -555,6 +558,7 @@ src/renderer/src/channel/
 | AUTO 与切换 | `resolveAndPersistAutoLanguage` 写回 cache + 更新 UI |
 | 伪语言项 | Phase 1 模式 UI 下隐藏；旧路径保留不推荐 |
 | OpenAI 兼容源 | 扩展现有 OpenAI 配置 |
+| OpenAI 模型配置 | 预设模型下拉 + 「自定义」字段，旧的任意模型值会迁移到自定义字段 |
 | Azure 模型改造 | Phase 1 不改（deploymentName 已足够） |
 | 空态 | `activeServices` 为空时单条提示 |
 | 按源代理 / 自定义 Prompt | Phase 2 ✅ |
@@ -576,7 +580,9 @@ src/renderer/src/channel/
 - [x] **对照/翻译 `⇄`**：交换语言 + 文本 + 自动重译；AUTO 写回 cache
 - [x] **润色 `⇄`**：`onPolishToVerify`
 - [x] **「用结果替换输入」**：主结果源文本写入输入框
-- [x] OpenAI 模型自由输入；URL 规则说明（不含 `/v1`）
+- [x] OpenAI 模型支持预设选择与自定义模型字段；URL 规则说明（不含 `/v1`）
+- [x] 多个 OpenAI 兼容源可同时启用并分别显示结果
+- [x] 流式结果按 `translateServiceId/requestId` 过滤，避免同类型实例串流
 - [x] 模式 UI 下语言列表不展示伪语言项
 - [x] 无可用源时单条空态提示
 
@@ -586,7 +592,7 @@ src/renderer/src/channel/
 
 - [x] #9 设置页自定义 Prompt
 - [x] #10 模式与翻译源绑定
-- [x] #11 按翻译源配置代理
+- [x] #11 按翻译源配置代理（流式 AI 为 session 临时代理，已加释放保护与日志）
 - [x] #12 按模式记忆语言对
 - [—] #13 不实施
 
@@ -596,6 +602,13 @@ src/renderer/src/channel/
 - [x] #15 划词翻译默认对照模式
 - [x] #16 剪贴板英文自动对照
 - [x] #17 Round-trip 检查提示
+
+### 发布与更新修复
+
+- [x] 版本号提升到 `0.9.16`，避免低于已知 `0.9.15` 的历史版本
+- [x] 自动更新提示前使用语义版本比较，防止服务端旧版本触发降级提示
+- [x] Windows release workflow 校验 tag 与 `package.json` 版本一致
+- [x] `electron-builder.yml` release notes 更新为本次修复内容
 
 ---
 

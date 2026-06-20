@@ -72,7 +72,7 @@ export const getOcrServiceMapByUse = (): Map<unknown, unknown> => {
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/ban-types
-export const buildOcrService = (type): {} => {
+export const buildOcrService = (type): any => {
   const info: {
     name: string
     // 是否需要秘钥

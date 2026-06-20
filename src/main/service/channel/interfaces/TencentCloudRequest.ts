@@ -3,10 +3,10 @@ import * as ocrTencentcloud from 'tencentcloud-sdk-nodejs-ocr'
 import * as TencentCloudCommon from 'tencentcloud-sdk-nodejs-common'
 import { injectAgentBySetAgentFieldName } from '../../../utils/RequestUtil'
 import {
-  ImageTranslateResponse,
+  ImageTranslateLLMResponse,
   TextTranslateResponse
-} from 'tencentcloud-sdk-nodejs-tmt/src/services/tmt/v20180321/tmt_models'
-import { GeneralBasicOCRResponse } from 'tencentcloud-sdk-nodejs-ocr/src/services/ocr/v20181119/ocr_models'
+} from 'tencentcloud-sdk-nodejs-tmt/tencentcloud/services/tmt/v20180321/tmt_models'
+import { GeneralBasicOCRResponse } from 'tencentcloud-sdk-nodejs-ocr/tencentcloud/services/ocr/v20181119/ocr_models'
 
 const TmtClient = tmtTencentCloud.tmt.v20180321.Client
 const OcrClient = ocrTencentcloud.ocr.v20181119.Client
@@ -77,7 +77,7 @@ const apiOcr = async (info): Promise<GeneralBasicOCRResponse> => {
  *
  * @param info OCR信息
  */
-const apiOcrTranslate = async (info): Promise<ImageTranslateResponse> => {
+const apiOcrTranslate = async (info): Promise<ImageTranslateLLMResponse> => {
   const clientConfig: TencentCloudCommon.ClientConfig = {
     credential: {
       secretId: info.appId,
@@ -96,14 +96,10 @@ const apiOcrTranslate = async (info): Promise<ImageTranslateResponse> => {
   // 注入代理
   const client = new TmtClient(clientConfig)
   const params = {
-    SessionUuid: 'session-00001',
-    Scene: 'doc',
     Data: info.img.replace('data:image/png;base64,', ''),
-    Source: info.languageType,
-    Target: 'en',
-    ProjectId: 0
+    Target: 'en'
   }
-  return client.ImageTranslate(params)
+  return client.ImageTranslateLLM(params)
 }
 
 export default {

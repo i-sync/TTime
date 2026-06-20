@@ -105,9 +105,7 @@
               v-model="translateServiceThis.model"
               size="small"
               filterable
-              allow-create
-              default-first-option
-              placeholder="选择或输入模型名"
+              placeholder="选择模型"
             >
               <el-option
                 v-for="model in openAIModelList"
@@ -116,8 +114,15 @@
                 :value="model.value"
               />
             </el-select>
+            <el-input
+              v-if="translateServiceThis.model === OpenAIModelEnum.CUSTOM"
+              v-model="translateServiceThis.customModel"
+              type="text"
+              placeholder="请输入自定义模型名，例如 anthropic/claude-3.5-sonnet"
+              spellcheck="false"
+            />
             <span class="form-switch-span">
-              支持 OpenRouter 等兼容 API，例如 anthropic/claude-3.5-sonnet
+              选择「自定义」后可填写 OpenRouter、Ollama 等兼容 API 模型名
             </span>
           </el-form-item>
           <el-form-item
@@ -272,13 +277,19 @@ const useProxyStatusChange = (): void => {
 // 可添加的翻译源列表 先把 values 格式转换为数组
 const translateServiceSelectMenuListTemp = Array.from(
   TranslateServiceBuilder.getServiceList().values()
-)
+) as Array<{
+  name: string
+  type: string
+  logo: string
+  isBuiltIn?: boolean
+  dividedStatus?: boolean
+}>
 // 这里获取翻译源对应的内置翻译源状态
 translateServiceSelectMenuListTemp.forEach((service) => {
   service['isBuiltIn'] = buildTranslateService(service.type)?.['isBuiltIn']
 })
 // 根据内置状态进行排序分组
-translateServiceSelectMenuListTemp.sort((a, b) => a['isBuiltIn'] - b['isBuiltIn'])
+translateServiceSelectMenuListTemp.sort((a, b) => Number(a['isBuiltIn']) - Number(b['isBuiltIn']))
 // 因为是否内置翻译源只有两种状态 是 与 否
 // 获取第一条数据的内置状态
 const lastIsBuiltIn = translateServiceSelectMenuListTemp[0]['isBuiltIn']
@@ -296,6 +307,28 @@ const translateServiceSelectMenuList = ref(translateServiceSelectMenuListTemp)
 
 const openAIModelList = OpenAIModelEnum.MODEL_LIST
 
+const MULTI_INSTANCE_SERVICE_TYPES = new Set([TranslateServiceEnum.OPEN_AI])
+
+const OPEN_AI_MODEL_VALUES = new Set(openAIModelList.map((model) => model.value))
+
+const normalizeOpenAIModelConfig = (translateService): void => {
+  if (!translateService || translateService.type !== TranslateServiceEnum.OPEN_AI) {
+    return
+  }
+  const model = translateService.model
+  if (!isNull(model) && !OPEN_AI_MODEL_VALUES.has(model)) {
+    translateService.customModel = model
+    translateService.model = OpenAIModelEnum.CUSTOM
+  }
+}
+
+const resolveOpenAIModel = (translateService): string => {
+  if (translateService?.model !== OpenAIModelEnum.CUSTOM) {
+    return translateService?.model
+  }
+  return String(translateService.customModel ?? '').trim()
+}
+
 /**
  * 设置当前选中项默认为第一个翻译服务
  */
@@ -303,6 +336,7 @@ const selectOneServiceThis = (): void => {
   translateServiceThis.value = translateServiceMap.value.get(
     translateServiceMap.value.entries().next().value[0]
   )
+  normalizeOpenAIModelConfig(translateServiceThis.value)
 }
 
 // 获取缓存中的翻译服务list
@@ -320,6 +354,7 @@ selectOneServiceThis()
  * @param translateService 翻译服务
  */
 const selectTranslateService = (translateService: any): void => {
+  normalizeOpenAIModelConfig(translateService)
   translateServiceThis.value = translateService
   // 开启翻译服务验证加载状态
   checkIngStatus.value = false
@@ -387,6 +422,10 @@ const translateServiceCheckAndSave = (): void => {
     return ElMessageExtend.warning('请输入密钥信息后再进行验证')
   }
   if (TranslateServiceEnum.OPEN_AI === value.type) {
+    const effectiveModel = resolveOpenAIModel(value)
+    if (isNull(effectiveModel)) {
+      return ElMessageExtend.warning('请输入自定义模型名')
+    }
     if (isNotUrl(value.requestUrl)) {
       value.requestUrl = OpenAIModelEnum.REQUEST_URL
     } else {
@@ -487,6 +526,9 @@ const serviceUseStatusChange = (translateService): void => {
  * @param translateService 当前开启的服务
  */
 const serviceCloseOtherSameTypesInUse = (translateService): void => {
+  if (MULTI_INSTANCE_SERVICE_TYPES.has(translateService.type)) {
+    return
+  }
   for (const insideTranslateService of getTranslateServiceMap().values()) {
     if (
       insideTranslateService.type === translateService.type &&

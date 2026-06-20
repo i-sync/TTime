@@ -5,17 +5,17 @@ class TranslateVo {
   /**
    * 请求ID
    */
-  requestId: string
+  requestId!: string
 
   /**
    * 翻译服务ID
    */
-  translateServiceId: string
+  translateServiceId!: string
 
   /**
    * 翻译模式（润色 / 对照 / 翻译）
    */
-  translateMode: string
+  translateMode!: string
 
   /**
    * 翻译结果列表

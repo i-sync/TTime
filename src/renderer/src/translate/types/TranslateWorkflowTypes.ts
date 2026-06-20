@@ -1,6 +1,7 @@
 export interface TranslateInputApi {
   getTranslateContent(): string
   setTranslateContent(value: string): void
+  clearTranslatedContentEvent(): void
   translateFun(): void
   translateDualPolishCompareFun(): void
 }
@@ -8,6 +9,9 @@ export interface TranslateInputApi {
 export interface TranslateResultPanelApi {
   getPrimaryResultContent(): string
   setPrimaryResultContent(value: string): void
+  clearTranslatedResultContentEvent(): void
+  setShowResult(value: boolean): void
+  setIsResultLoading(value: boolean): void
   setActiveServiceIds(ids: string[], clearInactive?: boolean): void
   setServiceModeLabels(labels: Record<string, string>): void
 }

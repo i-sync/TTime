@@ -64,21 +64,31 @@ import { YesNoEnum } from '../../../common/enums/YesNoEnum'
 import { getActiveServicesForMode, initTranslateMode } from '../utils/translateModeUtil'
 import { clearRoundTripHintPending } from '../utils/translateRoundTripHintUtil'
 import { useTranslateWorkflow } from './composables/useTranslateWorkflow'
+import type {
+  TranslateInputApi,
+  TranslateResultPanelApi,
+  LanguageSelectApi
+} from './types/TranslateWorkflowTypes'
+import type { TranslateServiceView } from './types/TranslateResultChannelTypes'
+
+type OcrServiceView = { id: string }
 
 initTheme()
 initTranslateMode()
 
-const translateInput = ref()
-const translatedResultInput = ref()
-const languageSelectRef = ref()
-const translateModeSelectRef = ref()
+const translateInput = ref<TranslateInputApi>()
+const translatedResultInput = ref<TranslateResultPanelApi>()
+const languageSelectRef = ref<LanguageSelectApi>()
+const translateModeSelectRef = ref<{ refreshMode(): void }>()
 const hideTranslateInput = ref(false)
 const hideTranslateLanguage = ref(false)
 
 const onModeChanged = (): void => {
   languageSelectRef.value?.syncFromCache()
   translateModeSelectRef.value?.refreshMode()
-  const activeIds = getActiveServicesForMode().map((service) => service.id)
+  const activeIds = (getActiveServicesForMode() as TranslateServiceView[]).map(
+    (service) => service.id
+  )
   translatedResultInput.value?.setActiveServiceIds(activeIds)
 }
 
@@ -133,19 +143,25 @@ if (isNull(cacheGet('translateServiceMap'))) {
     setTranslateServiceMap(new Map(translateServiceMap))
   } else {
     const map = new Map()
-    const ttimeService = buildTranslateService(TranslateServiceEnum.TTIME)
+    const ttimeService = buildTranslateService(TranslateServiceEnum.TTIME) as TranslateServiceView
     map.set(ttimeService.id, ttimeService)
     setTranslateServiceMap(map)
 
-    const bingDictService = buildTranslateService(TranslateServiceEnum.BING_DICT)
+    const bingDictService = buildTranslateService(
+      TranslateServiceEnum.BING_DICT
+    ) as TranslateServiceView
     map.set(bingDictService.id, bingDictService)
     setTranslateServiceMap(map)
 
-    const deepLBuiltInService = buildTranslateService(TranslateServiceEnum.DEEP_L_BUILT_IN)
+    const deepLBuiltInService = buildTranslateService(
+      TranslateServiceEnum.DEEP_L_BUILT_IN
+    ) as TranslateServiceView
     map.set(deepLBuiltInService.id, deepLBuiltInService)
     setTranslateServiceMap(map)
 
-    const niuTransBuiltInService = buildTranslateService(TranslateServiceEnum.NIU_TRANS_BUILT_IN)
+    const niuTransBuiltInService = buildTranslateService(
+      TranslateServiceEnum.NIU_TRANS_BUILT_IN
+    ) as TranslateServiceView
     map.set(niuTransBuiltInService.id, niuTransBuiltInService)
     setTranslateServiceMap(map)
   }
@@ -157,7 +173,7 @@ if (isNull(cacheGet('ocrServiceMap'))) {
     setOcrServiceMap(new Map(ocrServiceMap))
   } else {
     const map = new Map()
-    const ttimeService = buildOcrService(OcrServiceEnum.TTIME)
+    const ttimeService = buildOcrService(OcrServiceEnum.TTIME) as OcrServiceView
     map.set(ttimeService.id, ttimeService)
     setOcrServiceMap(map)
   }

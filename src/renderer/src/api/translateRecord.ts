@@ -1,14 +1,19 @@
 import request from '../utils/request'
 import HttpMethodType from '../enums/HttpMethodTypeClassEnum'
-import { AxiosResponse } from 'axios'
 import TranslateRecordVo from '../../../common/class/TranslateRecordVo'
 import TranslateServiceRecordVo from '../../../common/class/TranslateServiceRecordVo'
 import TranslateVo from '../../../common/class/TranslateVo'
 
+export type TranslateRecordPageData = {
+  rows: TranslateRecordVo[]
+  totalNumber: number
+  totalPageCount: number
+}
+
 /**
  * 保存
  */
-export function translateRecordSave(data: any): Promise<AxiosResponse> {
+export function translateRecordSave(data: any): Promise<any> {
   return request({
     url: 'translate/translateRecord/',
     method: HttpMethodType.POST,
@@ -19,7 +24,7 @@ export function translateRecordSave(data: any): Promise<AxiosResponse> {
 /**
  * 分页查询
  */
-export function findTranslateRecordPageList(data: any): Promise<AxiosResponse> {
+export function findTranslateRecordPageList(data: any): Promise<TranslateRecordPageData> {
   return request({
     url: 'translate/translateRecord/',
     method: HttpMethodType.GET,
@@ -30,7 +35,7 @@ export function findTranslateRecordPageList(data: any): Promise<AxiosResponse> {
 /**
  * 查询翻译记录详细
  */
-export function findTranslateRecordDetail(id: string): Promise<AxiosResponse> {
+export function findTranslateRecordDetail(id: string): Promise<TranslateRecordDetail[]> {
   return request({
     url: 'translate/translateRecordDetail/' + id,
     method: HttpMethodType.GET
@@ -40,7 +45,7 @@ export function findTranslateRecordDetail(id: string): Promise<AxiosResponse> {
 /**
  * 删除翻译记录
  */
-export function deleteTranslateRecord(id: string): Promise<AxiosResponse> {
+export function deleteTranslateRecord(id: string): Promise<any> {
   return request({
     url: 'translate/translateRecord/' + id,
     method: HttpMethodType.DELETE
@@ -60,7 +65,9 @@ export class TranslateRecordSavePo {
     translateRecordSavePo.translateContent = translateRecord.translateContent
     translateRecordSavePo.languageType = translateRecord.languageType
     translateRecordSavePo.languageResultType = translateRecord.languageResultType
-    translateRecordSavePo.recordDetailList = TranslateRecordDetail.buildList(translateRecord.translateServiceRecordList)
+    translateRecordSavePo.recordDetailList = TranslateRecordDetail.buildList(
+      translateRecord.translateServiceRecordList
+    )
     return translateRecordSavePo
   }
 }
@@ -77,8 +84,8 @@ export class TranslateRecordDetail {
   wfs: string
 
   static build(translateServiceRecord: TranslateServiceRecordVo): TranslateRecordDetail {
-    let translateRecordDetail = new TranslateRecordDetail()
-    let translateVo: TranslateVo = translateServiceRecord.translateVo
+    const translateRecordDetail = new TranslateRecordDetail()
+    const translateVo: TranslateVo = translateServiceRecord.translateVo
     translateRecordDetail.translateServiceType = translateServiceRecord.translateServiceType
     translateRecordDetail.translateServiceId = translateServiceRecord.translateServiceId
     if (typeof translateVo.translateList !== 'string') {
@@ -93,7 +100,9 @@ export class TranslateRecordDetail {
     return translateRecordDetail
   }
 
-  static buildList(translateServiceRecordList: Array<TranslateServiceRecordVo>): Array<TranslateRecordDetail> {
+  static buildList(
+    translateServiceRecordList: Array<TranslateServiceRecordVo>
+  ): Array<TranslateRecordDetail> {
     return translateServiceRecordList.map((value: TranslateServiceRecordVo) => {
       return TranslateRecordDetail.build(value)
     })

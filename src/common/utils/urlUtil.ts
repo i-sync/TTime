@@ -3,7 +3,7 @@
  *
  * @param url 地址
  */
-export function parseCustomProtocolUrl(url): { path; queryParams } {
+export function parseCustomProtocolUrl(url): { path; queryParams } | null {
   // 使用正则表达式来解析URL中的所有查询参数键值对
   const queryString = url.split('?')[1]
   if (queryString) {

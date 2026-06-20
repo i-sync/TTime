@@ -19,6 +19,27 @@ let nullWin: BrowserWindow
 // 当前软件版本
 const thisVersion = app.getVersion()
 
+const compareSemverLike = (left: string, right: string): number => {
+  const normalize = (version: string): number[] =>
+    String(version)
+      .trim()
+      .replace(/^v/i, '')
+      .split(/[+-]/)[0]
+      .split('.')
+      .map((part) => Number.parseInt(part, 10) || 0)
+
+  const leftParts = normalize(left)
+  const rightParts = normalize(right)
+  const length = Math.max(leftParts.length, rightParts.length)
+  for (let index = 0; index < length; index++) {
+    const diff = (leftParts[index] ?? 0) - (rightParts[index] ?? 0)
+    if (diff !== 0) {
+      return diff > 0 ? 1 : -1
+    }
+  }
+  return 0
+}
+
 /**
  * 更新窗口
  */
@@ -294,6 +315,19 @@ class AutoUpdater {
         // AutoUpdater.newVersionDownloadUrl = ''
         if (!newStatus || updateStatus === UpdateStatusEnum.UNWANTED) {
           log.info('版本检测结束 , 当前版本 : ', thisVersion, ' , 无需更新')
+          AutoUpdater.autoUpdaterSendEventByMsg(
+            AutoUpdaterEnum.UPDATE_NOT_AVAILABLE,
+            AutoUpdater.message.updateNotAva
+          )
+          return
+        }
+        if (compareSemverLike(newVersion, thisVersion) <= 0) {
+          log.info(
+            '版本检测结束 , 服务端版本不高于当前版本，无需更新 , 当前版本 : ',
+            thisVersion,
+            ' , 服务端版本 : ',
+            newVersion
+          )
           AutoUpdater.autoUpdaterSendEventByMsg(
             AutoUpdaterEnum.UPDATE_NOT_AVAILABLE,
             AutoUpdater.message.updateNotAva

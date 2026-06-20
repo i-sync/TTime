@@ -31,6 +31,16 @@ jobs:
         shell: bash
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
+      - name: Validate tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$tag" != "${{ steps.version.outputs.version }}" ]; then
+            echo "Tag version ($tag) does not match package.json (${{ steps.version.outputs.version }})"
+            exit 1
+          fi
+
       - name: Install dependencies
         shell: pwsh
         run: |

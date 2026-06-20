@@ -243,7 +243,7 @@ const runTranslatePlan = (modes: string[]): void => {
     return
   }
 
-  if (plan.requestMap.size === 0) {
+  if (plan.requests.length === 0) {
     ElMessageExtend.warning('当前语言对不受已启用翻译源支持，请检查语言设置')
     emit('is-result-loading-event', false)
     return
@@ -256,13 +256,19 @@ const runTranslatePlan = (modes: string[]): void => {
   emit('is-result-loading-event', true)
   window.api.ttimeApiTranslateUse()
 
+  if (plan.translateRecordVo) {
+    cacheSet('activeTranslateRequestId', plan.translateRecordVo.requestId)
+  } else {
+    cacheSet('activeTranslateRequestId', '')
+  }
+
   const translateHistoryStatus = cacheGet('translateHistoryStatus') === YesNoEnum.Y
   if (translateHistoryStatus && plan.translateRecordVo) {
     const translateServiceRecordList = []
-    plan.requestMap.forEach((value, key) => {
+    plan.requests.forEach((request) => {
       const serviceRecordVo = new TranslateServiceRecordVo()
-      serviceRecordVo.translateServiceType = key
-      serviceRecordVo.translateServiceId = value.id as string
+      serviceRecordVo.translateServiceType = request.serviceType
+      serviceRecordVo.translateServiceId = request.serviceId
       serviceRecordVo.translateStatus = false
       translateServiceRecordList.push(serviceRecordVo)
     })
@@ -273,8 +279,8 @@ const runTranslatePlan = (modes: string[]): void => {
     updateTranslateRecordList(translateRecordList)
   }
 
-  plan.requestMap.forEach((value, key) => {
-    window.api.apiUniteTranslate(key, value)
+  plan.requests.forEach((request) => {
+    window.api.apiUniteTranslate(request.serviceType, request.payload)
   })
 }
 

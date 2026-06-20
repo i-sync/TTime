@@ -14,9 +14,9 @@
   "compilerOptions": {
     "composite": true,
     "strict": false,
-    "lib": [
-      "dom"
-    ],
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "lib": ["ES2021", "dom"],
     "baseUrl": ".",
     "paths": {
       "@renderer/*": [

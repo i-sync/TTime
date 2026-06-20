@@ -7,7 +7,14 @@ import {
   shouldFilterPseudoLanguages
 } from '../../../../utils/translateModeUtil'
 
-const languageMap = new Map()
+type LanguageService = { name: string; type: string; logo: string; languageType?: string }
+type ChannelLanguage = {
+  languageName: string
+  languageType?: string
+  serviceList: LanguageService[]
+}
+
+const languageMap = new Map<string, ChannelLanguage[]>()
 
 // 获取所有翻译源对应可翻译语言
 const channelModules = import.meta.glob('../../../../../../common/channel/translate/info/*.ts')
@@ -26,10 +33,7 @@ for (const modulePath in channelModules) {
  * @param list 列表
  * @param serviceEnum 服务类型
  */
-function injectService(
-  list,
-  serviceEnum
-): [{ languageName; languageType; serviceList: { name; type; logo } }] {
+function injectService(list: ChannelLanguage[], serviceEnum: string): ChannelLanguage[] {
   return list.map((value) => {
     return {
       ...value,
@@ -43,9 +47,9 @@ function injectService(
  *
  * @param listArray 翻译支持语言数组
  */
-const mergeLanguageList = (listArray): never[] => {
+const mergeLanguageList = (listArray: ChannelLanguage[][]): ChannelLanguage[] => {
   // 以翻译名称为key的集合
-  const merged = {}
+  const merged: Record<string, ChannelLanguage> = {}
   // 遍历所有翻译列表
   for (let i = 0; i < listArray.length; i++) {
     const list = listArray[i]
@@ -80,14 +84,14 @@ const mergeLanguageList = (listArray): never[] => {
   return Object.values(merged)
 }
 
-let languageList
-let languageListAll: never[] = []
+let languageList: ChannelLanguage[]
+let languageListAll: ChannelLanguage[] = []
 
-const buildMergedLanguageList = (): never[] => {
-  const languageArray = []
+const buildMergedLanguageList = (): ChannelLanguage[] => {
+  const languageArray: ChannelLanguage[][] = []
   const translateServiceMapData = getTranslateServiceMapByUse()
   for (const translateService of translateServiceMapData.values()) {
-    languageArray.push(languageMap.get(translateService['type']))
+    languageArray.push(languageMap.get(translateService['type']) ?? [])
   }
   return mergeLanguageList(languageArray)
 }
@@ -95,7 +99,7 @@ const buildMergedLanguageList = (): never[] => {
 /**
  * 加载翻译支持的语言列表（选择器用，模式 UI 下过滤伪语言）
  */
-const initLanguageList = (): never[] => {
+const initLanguageList = (): ChannelLanguage[] => {
   languageListAll = buildMergedLanguageList()
   languageList = shouldFilterPseudoLanguages()
     ? languageListAll.filter((lang) => !PSEUDO_LANGUAGE_NAMES.includes(lang.languageName))
@@ -108,7 +112,7 @@ const initLanguageList = (): never[] => {
  *
  * @param languageName 语言名称
  */
-const findLanguageByLanguageName = (languageName): object => {
+const findLanguageByLanguageName = (languageName): ChannelLanguage | undefined => {
   if (languageListAll.length === 0) {
     languageListAll = buildMergedLanguageList()
   }

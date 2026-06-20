@@ -17,14 +17,14 @@ class AliyunChannel implements ITranslateInterface {
       (response) => {
         const body = response.body
         log.info('[阿里云翻译事件] - 响应报文 : ', body)
-        const code = body.code
+        const code = body?.code
         let data = ''
         if (code === 200) {
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-ignore
           data = body.data.translated.split('\\n')
         } else {
-          data = this.getMsgByErrorCode(code, body.message)
+          data = this.getMsgByErrorCode(code, body?.message)
         }
         GlobalWin.mainWinSend(TranslateChannelFactory.callbackName(info.type), R.okIT(info, data))
       },
@@ -54,7 +54,7 @@ class AliyunChannel implements ITranslateInterface {
       (response) => {
         const body = response.body
         log.info('[阿里云翻译校验密钥事件] - 响应报文 : ', response)
-        const code = body.code
+        const code = body?.code
         if (code === 200) {
           GlobalWin.setWin.webContents.send(
             'api-check-translate-callback-event',
@@ -65,7 +65,7 @@ class AliyunChannel implements ITranslateInterface {
           GlobalWin.setWin.webContents.send(
             'api-check-translate-callback-event',
             TranslateServiceEnum.ALIYUN,
-            R.errorMD(this.getMsgByErrorCode(code, body.message), info.responseData)
+            R.errorMD(this.getMsgByErrorCode(code, body?.message), info.responseData)
           )
         }
       },

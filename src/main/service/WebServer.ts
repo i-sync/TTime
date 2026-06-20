@@ -1,5 +1,4 @@
 import { parseCustomProtocolUrl } from '../../common/utils/urlUtil'
-import { isNull } from '../../common/utils/validate'
 import TTimeAuth from './auth/TTimeAuth'
 import StoreService from './StoreService'
 import log from '../utils/log'
@@ -27,10 +26,10 @@ export const initServer = (): void => {
     }
   })
 
-// 绑定请求事件监听
+  // 绑定请求事件监听
   server.on('request', (req, res) => {
     const parseCustomProtocol = parseCustomProtocolUrl(req.url)
-    if (isNull(parseCustomProtocol)) {
+    if (parseCustomProtocol === null) {
       return
     }
     if (parseCustomProtocol.path === 'login') {
@@ -42,11 +41,11 @@ export const initServer = (): void => {
     res.writeHead(200, { 'Content-Type': 'text/html;charset=UTF8' })
     res.end(
       '<div style=" display: flex;align-items: center;justify-content: center;width: 100%;height: 100%;">' +
-      '<div style="display: flex;align-items: center;flex-direction: column;">' +
-      '<h1>成功</h1>' +
-      '<h2>您可以关闭此页面</h2>' +
-      '</div>' +
-      '</div>'
+        '<div style="display: flex;align-items: center;flex-direction: column;">' +
+        '<h1>成功</h1>' +
+        '<h2>您可以关闭此页面</h2>' +
+        '</div>' +
+        '</div>'
     )
   })
 }
